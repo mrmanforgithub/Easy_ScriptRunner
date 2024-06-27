@@ -289,11 +289,14 @@ class TabController:
             json.dump(merged_data, merged_file, ensure_ascii=False, indent=4)
         print("输出组合内容")
 
-    def recent_scan_recall(self, evt):
-        print("打开最近扫描")
+    def set_default_photo(self, evt):
+        print("设置默认图片")
+
+    def set_default_operation(self, evt):
+        print("设置默认操作")
 
     def scan_reopen_enter(self, evt):
-        print("重置内容")
+        print("重启本次扫描")
 
     def start_grab_window(self, evt):
         print("打开框选窗口")

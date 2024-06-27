@@ -137,13 +137,12 @@ class TabGUI(Frame):
         # 图片文件地址文本框
         self.tk_input_scan_photo_text = self.__tk_input_scan_photo_text(self.tk_frame_scan_detail_container)
         # 操作文件地址文本框
-        self.tk_input_scan_operation_text = self.__tk_input_scan_operation_text(self.tk_frame_scan_detail_container)
-        self.tk_label_recent_scan_recall = self.__tk_label_recent_scan_recall(self.tk_frame_scan_detail_container)
-        self.tk_button_recent_scan_button = self.__tk_button_recent_scan_button(self.tk_frame_scan_detail_container)
-        # 最近扫描内容
-        self.tk_list_box_recent_scan_box = self.__tk_list_box_recent_scan_box(self.tk_frame_scan_detail_container)
-        # 最近扫描开启按钮
-        self.tk_button_scan_reopen_button = self.__tk_button_scan_reopen_button(self.tk_frame_scan_detail_container)
+        self.tk_button_scan_reopen_button = self.__tk_button_scan_reopen_button( self.tk_frame_scan_detail_container)
+        # 重启
+        self.tk_button_scan_default_photo = self.__tk_button_scan_default_photo( self.tk_frame_scan_detail_container)
+        self.tk_button_scan_default_operation = self.__tk_button_scan_default_operation( self.tk_frame_scan_detail_container)
+        # 设计默认值按钮
+
         self.ctl = tab_controller(self)
         self.ui = ui
         self.ctl.init_ui(self.ui)
@@ -539,31 +538,17 @@ class TabGUI(Frame):
         ipt.place(x=86, y=45, width=150, height=30)
         return ipt
 
-    def __tk_input_scan_operation_text(self, parent):
-        ipt = Entry(parent, bootstyle="primary")
-        ipt.place(x=317, y=45, width=150, height=30)
-        return ipt
-
-    def __tk_label_recent_scan_recall(self, parent):
-        label = Label(parent, text="最 近 的 扫 描", anchor="center", bootstyle="info inverse")
-        label.place(x=17, y=103, width=140, height=30)
-        return label
-
-    def __tk_button_recent_scan_button(self, parent):
-        btn = Button(parent, text="打 开", takefocus=False, bootstyle="default")
-        btn.place(x=425, y=103, width=140, height=30)
+    def __tk_button_scan_reopen_button(self,parent):
+        btn = Button(parent, text="初始化此扫描", takefocus=False,bootstyle="primary")
+        btn.place(x=6, y=335, width=565, height=55)
         return btn
-
-    def __tk_list_box_recent_scan_box(self, parent):
-        lb = Listbox(parent)
-
-        lb.place(x=17, y=135, width=550, height=187)
-        self.create_bar(parent, lb, True, False, 17, 135, 550, 187, 577, 398)
-        return lb
-
-    def __tk_button_scan_reopen_button(self, parent):
-        btn = Button(parent, text="初始化图片事件", takefocus=False, bootstyle="primary")
-        btn.place(x=0, y=338, width=577, height=55)
+    def __tk_button_scan_default_photo(self,parent):
+        btn = Button(parent, text="设置默认图片", takefocus=False,bootstyle="dark")
+        btn.place(x=6, y=275, width=280, height=49)
+        return btn
+    def __tk_button_scan_default_operation(self,parent):
+        btn = Button(parent, text="设置默认事件", takefocus=False,bootstyle="dark")
+        btn.place(x=290, y=275, width=280, height=49)
         return btn
 
     def __event_bind(self):
@@ -586,8 +571,9 @@ class TabGUI(Frame):
         self.tk_button_scan_browser1_button.bind('<Button-1>', self.ctl.scan_browser1_enter)
         self.tk_button_scan_browser2_button.bind('<Button-1>', self.ctl.scan_browser2_enter)
         self.tk_button_scan_output.bind('<Button-1>', self.ctl.scan_output_enter)
-        self.tk_button_recent_scan_button.bind('<Button-1>', self.ctl.recent_scan_recall)
         self.tk_button_scan_reopen_button.bind('<Button-1>', self.ctl.scan_reopen_enter)
+        self.tk_button_scan_default_photo.bind('<Button-1>',self.ctl.set_default_photo)
+        self.tk_button_scan_default_operation.bind('<Button-1>',self.ctl.set_default_operation)
         self.tk_button_select_button.bind('<Button-1>', self.ctl.start_grab_window)
         self.tk_button_select_photo_button.bind('<Button-1>', self.ctl.start_grab_photo_window)
         self.tk_button_select_photo_show.bind('<Button-1>', self.ctl.select_photo_show())
@@ -619,9 +605,9 @@ class TabGUI(Frame):
         sty.configure(self.new_style(self.tk_button_scan_browser1_button), font=("微软雅黑", -16, "bold"))
         sty.configure(self.new_style(self.tk_button_scan_browser2_button), font=("微软雅黑", -16, "bold"))
         sty.configure(self.new_style(self.tk_button_scan_output), font=("微软雅黑", -18, "bold"))
-        sty.configure(self.new_style(self.tk_label_recent_scan_recall), font=("微软雅黑", -15, "bold italic underline"))
-        sty.configure(self.new_style(self.tk_button_recent_scan_button), font=("微软雅黑", -16, "bold"))
-        sty.configure(self.new_style(self.tk_button_scan_reopen_button), font=("微软雅黑", -25, "bold"))
+        sty.configure(self.new_style(self.tk_button_scan_reopen_button),font=("微软雅黑",-25,"bold"))
+        sty.configure(self.new_style(self.tk_button_scan_default_photo),font=("微软雅黑",-20,"bold"))
+        sty.configure(self.new_style(self.tk_button_scan_default_operation),font=("微软雅黑",-20,"bold"))
         sty.configure(self.new_style(self.tk_button_select_button), font=("微软雅黑", -21, "bold"))
         sty.configure(self.new_style(self.tk_button_select_photo_button), font=("微软雅黑", -21, "bold"))
         sty.configure(self.new_style(self.tk_label_photo_start_label), font=("微软雅黑", -12))
