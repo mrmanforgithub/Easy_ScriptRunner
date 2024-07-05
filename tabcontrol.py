@@ -19,13 +19,15 @@ class TabController:
     tab: object
 
     def __init__(self, tab):
-        self.tab = tab
+        self.tab = tab     # 本身的tab页面，用于给自己的tab控件进行操作
         self.operation_position = None
         self.operation_content = None
-        self.keep_scanning = False
-        self.sub_windows = []
+        self.keep_scanning = False   # 扫描的信标，保证正在扫描
+        self.sub_windows = []   # 子窗口集合，用于调用其他tab
+
         self.file_path = "operation_cache.json"  # 缓存文件，临时记录操作数据，关闭后清空
         self.photo_path = "photo_cache.json"  # 缓存文件，临时记录图片数据，关闭后清空
+
         self.operations = self.load_operations(self.file_path)
         if not self.operations:
             print("新建cache缓存文件")
@@ -36,7 +38,7 @@ class TabController:
 
         self.start_y = None  # 拖动框选的开始位置
         self.start_x = None
-        self.end_y = None  # 拖动框选的开始位置
+        self.end_y = None  # 拖动框选的结束位置
         self.end_x = None
 
         # 参数的初始化
@@ -51,15 +53,23 @@ class TabController:
         self.selection3_address = [0, 0, 0, 0]
         self.selection4_address = [0, 0, 0, 0]
 
-        self.result_check = ["是", "是", "是", "是"]  # 与或非的检查单
+        self.result_check = ["是", "是", "是", "是"]  # 与或非的检查单,全为是则通过检查
 
+        # 是否开启截图模式
         self.grab_photo = False
-
+        # 默认的扫描相似度阈值
+        self.check_similar = 0.75
+        # 线程池，最大20个同时进行的线程
         self.scan_pool = concurrent.futures.ThreadPoolExecutor(max_workers=20)
         self.scan_futures = set()
+
+        # 显示默认的操作列表
         self.populate_operation_list()
+        # 添加默认图片信息
         self.add_default_photos()
+        # 显示默认图片信息
         self.populate_photo_address(self.photo_path)
+
         keyboard.on_press_key("esc", self.handle_escape)  # 监听全局的 "Escape" 键按下事件
 
     def init_ui(self, ui):
@@ -70,6 +80,7 @@ class TabController:
         # TODO 组件初始化 赋值操作
 
     def start_scanning(self, evt, max_loops=None):
+        # 开始扫描，读取个个图片框的位置，匹配对应的地址，对应的与或非，然后传参图片匹配算法
         photo1_if = self.tab.tk_select_box_photo1_switch_box.get()
         photo2_if = self.tab.tk_select_box_photo2_switch_box.get()
         photo3_if = self.tab.tk_select_box_photo3_switch_box.get()
@@ -124,6 +135,7 @@ class TabController:
         self.save_photos()
 
     def confirm_selection(self, evt, selection):
+        # 确认本次扫描的循环
         if selection == "无限循环":
             self.max_loops = None
         elif selection == "循环1次":
@@ -133,10 +145,12 @@ class TabController:
         print(self.max_loops)
 
     def confirm_address_selection(self, evt):
+        # 确认地址选择后显示出来
         self.select_photo_show()
         self.save_photos()
 
     def browse_target_image(self, evt, text_box_number):
+        # 浏览图片所在位置的文本框填入
         if self.image_path is not None:
             target_image_path_str = filedialog.askopenfilename(initialdir=os.path.dirname(self.image_path),
                                                                initialfile=os.path.basename(self.image_path),
@@ -162,6 +176,7 @@ class TabController:
         self.save_photos()
 
     def save_photo_context(self, evt):
+        # 单独保存图片文件内容
         self.save_photos()
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if file_path:
@@ -170,6 +185,7 @@ class TabController:
         print("保存图片位置到文件")
 
     def load_photo_context(self, evt):
+        # 单独读取图片文件内容
         file_path = filedialog.askopenfilename(initialdir=os.path.dirname(self.file_path),
                                                initialfile=os.path.basename(self.file_path),
                                                title="读取操作列表",
@@ -179,6 +195,7 @@ class TabController:
         print("从文件中读取具体图片位置")
 
     def operation_change(self, evt):
+        # 修改操作
         print("修改操作列表")
         selected_item = self.tab.tk_table_operation_box.selection()
         if selected_item:
@@ -189,6 +206,7 @@ class TabController:
             self.populate_operation_list()
 
     def operation_delete(self, evt):
+        # 删除操作
         print("删除操作内容")
         selected_item = self.tab.tk_table_operation_box.selection()
         if selected_item:
@@ -198,6 +216,7 @@ class TabController:
             self.populate_operation_list()
 
     def operation_add(self, evt, operation_position=None):
+        # 添加操作
         self.operation_content = self.tab.tk_select_box_operation_list.get()
         num_rows = len(self.tab.tk_table_operation_box.get_children())
         if operation_position is None:
@@ -222,6 +241,7 @@ class TabController:
             self.add_close_operation_window(self.operation_position)
 
     def save_operation_context(self, evt):
+        # 单独保存操作文件内容
         self.save_operations()
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if file_path:
@@ -230,6 +250,7 @@ class TabController:
         print("保存操作信息到文件")
 
     def load_operation_context(self, evt):
+        # 单独读取操作文件内容
         file_path = filedialog.askopenfilename(initialdir=os.path.dirname(self.file_path),
                                                initialfile=os.path.basename(self.file_path),
                                                title="读取操作列表",
@@ -242,6 +263,7 @@ class TabController:
         print("从文件中读取具体操作信息")
 
     def scan_browser1_enter(self, evt):
+        # 图片文件读取
         if self.image_path is not None:
             target_image_path_str = filedialog.askopenfilename(initialdir=os.path.dirname(self.image_path),
                                                                initialfile=os.path.basename(self.image_path),
@@ -257,6 +279,7 @@ class TabController:
         print("打开图片保存文件浏览窗口")
 
     def scan_browser2_enter(self, evt):
+        # 操作文件读取
         if self.image_path is not None:
             target_image_path_str = filedialog.askopenfilename(initialdir=os.path.dirname(self.image_path),
                                                                initialfile=os.path.basename(self.image_path),
@@ -272,6 +295,7 @@ class TabController:
         print("打开操作保存文件浏览窗口")
 
     def scan_output_enter(self, evt):
+        # 将图片文件+操作文件组合输出
         with open(self.tab.tk_input_scan_operation_text.get(), 'r') as operation_file:
             operation_data = json.load(operation_file)
 
@@ -290,13 +314,110 @@ class TabController:
         print("输出组合内容")
 
     def set_default_photo(self, evt):
-        print("设置默认图片")
+        # 打开默认图片设置窗口并且记录默认图片信息
+        default_photo_window = tk.Toplevel(self.ui)
+        default_photo_window.title("设置默认图片")
+        default_photo_window.geometry("355x500")
+        default_photo_window.lift()
+        default_photo_window.focus_set()
+
+        with open('default_photo.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        text_widget = tk.Text(default_photo_window, wrap=tk.WORD, width=35, height=20)
+        text_widget.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
+        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+        
+        save_button = tk.Button(default_photo_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
+        save_button.grid(row=1, column=0, pady=10)
+
+        set_default_button = tk.Button(default_photo_window, text="导入本扫描图片信息", command=lambda:load_settings())
+        set_default_button.grid(row=1, column=1, pady=10)
+
+        def save_settings(settings_data_str):
+            try:
+            # Convert the JSON string back to a dictionary
+                settings_data = json.loads(settings_data_str)
+            # 保存在默认图片的文件中
+                with open('default_photo.json', 'w', encoding='utf-8') as f:
+                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
+                print("设置默认图片成功.")
+                default_photo_window.destroy()
+            except Exception as e:
+                print(f"保存设置时出错: {e}")
+
+        def load_settings():
+            data = self.save_photos(default_photo=None,getdata="1")
+            text_widget.delete("1.0", tk.END)
+            text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+            print("导入本扫描图片成功.")
+
+
 
     def set_default_operation(self, evt):
-        print("设置默认操作")
+        # 打开默认操作设置窗口并且记录默认操作信息
+        default_operation_window = tk.Toplevel(self.ui)
+        default_operation_window.title("设置默认操作")
+        default_operation_window.geometry("440x400")
+        default_operation_window.lift()
+        default_operation_window.focus_set()
+
+        with open('default_operation.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        text_widget = tk.Text(default_operation_window, wrap=tk.WORD, width=44, height=15)
+        text_widget.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
+        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+        
+        save_button = tk.Button(default_operation_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
+        save_button.grid(row=1, column=0, pady=10)
+
+        set_default_button = tk.Button(default_operation_window, text="导入本扫描操作信息", command=lambda:load_settings())
+        set_default_button.grid(row=1, column=1, pady=10)
+
+        def save_settings(settings_data_str):
+            try:
+                settings_data = json.loads(settings_data_str)
+                with open('default_operation.json', 'w', encoding='utf-8') as f:
+                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
+                print("设置默认操作成功.")
+                default_operation_window.destroy()
+            except Exception as e:
+                print(f"保存设置时出错: {e}")
+
+        def load_settings():
+            data = {}
+            i = 0
+            for operation in self.operations:
+                operation_index = i
+                operation_name = operation
+                data[i] = {"operation_index": operation_index, "operation_name": operation_name}
+                i = i + 1
+            text_widget.delete("1.0", tk.END)
+            text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+            print("导入本扫描操作成功.")
+
+    def set_default_key(self, evt):
+        print("设置默认快捷键")
+
+    def set_default_similar(self, evt, similar):
+        # 设置相似度
+        numeric_value_str = similar.replace('%', '')
+        numeric_value = float(numeric_value_str) / 100.0
+        self.check_similar = numeric_value
+        print(f"设置相似度{numeric_value}")
+
+    def check_out_log(self, evt):
+        print("查看日志")
 
     def scan_reopen_enter(self, evt):
         print("重启本次扫描")
+
+    def set_random_offset(self, evt):
+        print("设置偏差值")
+
+    def set_default_check(self, evt):
+        print("设置强相似/弱相似")
 
     def start_grab_window(self, evt):
         print("打开框选窗口")
@@ -308,6 +429,7 @@ class TabController:
         self.open_manual_selection_window()
 
     def select_photo_show(self):
+        # 选择的图片地址显示出来
         address_select = self.tab.tk_select_box_photo_address.get()
         if address_select == "地址1":
             if self.selection1_address is not None:
@@ -331,6 +453,7 @@ class TabController:
                 self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
 
     def address_change(self, address_select=None):
+        # 更改地址参数的选项，让地址（x1,y1）,(x2，y2)符合状态
         if address_select is None:
             address_select = self.tab.tk_select_box_photo_address.get()
             start_address = self.tab.tk_label_photo_start_label.cget("text")
@@ -366,6 +489,7 @@ class TabController:
                 return self.selection4_address
 
     def select_photo_save(self, evt):
+        # 保存对应地址1~4的函数
         selected_address = self.address_change()
         print(f"保存成功-{selected_address}")
         self.tab.tk_button_select_photo_show.config(text="成功")
@@ -374,16 +498,19 @@ class TabController:
 
     @staticmethod
     def take_screenshot():
+        # 截图
         screenshot = ImageGrab.grab()
         return screenshot
 
     @staticmethod
-    def load_target_image(path):  # 根据位置来读取照片
+    def load_target_image(path):
+        # 根据位置来读取照片
         target_image = Image.open(path)
         target_image = np.array(target_image)
         return target_image
 
     def compare_images_with_template_matching(self, image1, image2, address_content):
+        # 比较图片的算法
         # 将图像转换为灰度图
         gray_image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
         gray_image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
@@ -395,7 +522,7 @@ class TabController:
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
         # 设置相似度阈值
-        similarity_threshold = 0.75  # 通过调整阈值来判断相似度
+        similarity_threshold = self.check_similar     # 通过调整阈值来判断相似度，阈值默认0.75
 
         # 判断匹配值是否大于阈值
         if max_val >= similarity_threshold:
@@ -409,6 +536,7 @@ class TabController:
             return False  # 图片不相似
 
     def stop_scanning(self):
+        # 停止扫描
         self.scanning = False
         for future in list(self.scan_futures):
             if not future.done():
@@ -419,6 +547,7 @@ class TabController:
         self.tab.tk_button_start_scanning_button.configure(text="开始扫描")
 
     def scan_loop(self, target_image, photo_if, photo_address, chosen_index, max_loops):
+        # 扫描循环判断（次数无限循环/一次/10次等，并且判断与或非是否满足）chosen_index是1号~4号扫描，max_loops是循环次数
         address_content = self.address_change(address_select=photo_address)
         if address_content == [0, 0, 0, 0]:
             self.tab.tk_label_scanning_state_label.config(text="地址无效")
@@ -462,6 +591,7 @@ class TabController:
                 self.stop_scanning()
 
     def open_manual_selection_window(self):
+        # 框选/截图窗口代码
         self.ui.iconify()  # 将主窗口最小化
         self.manual_selection_window = tk.Toplevel(self.ui)  # 创建一个新的Toplevel窗口
         self.manual_selection_window.attributes('-alpha', 0.3)
@@ -520,46 +650,55 @@ class TabController:
         self.manual_selection_window.focus_set()
 
     def add_start_operation(self, chosen_index, position, loop_count):
+        # 将开启扫描操作加入operations，随后打印出来
         self.operations.insert(position, f"开启：{chosen_index}号扫描{loop_count}次")
         self.save_operations()
         self.populate_operation_list()
 
     def add_close_operation(self, chosen_index, position):
+        # 将关闭操作加入operations，随后打印出来
         self.operations.insert(position, f"关闭：{chosen_index}号扫描")
         self.save_operations()
         self.populate_operation_list()
 
     def add_drag_operation(self, pstart, pend, position):
+        # 将拖动操作加入operations，随后打印出来
         self.operations.insert(position, f"拖动：({pstart},{pend})")
         self.save_operations()
         self.populate_operation_list()
 
     def add_pathfinding_operation(self, pathfinding_loc, position):
+        # 将寻路操作加入operations，随后打印出来
         self.operations.insert(position, f"寻路：{pathfinding_loc}")
         self.save_operations()
         self.populate_operation_list()
 
     def add_wait_operation(self, wait_time, position):
+        # 将等待操作加入operations，随后打印出来
         self.operations.insert(position, f"等待：{wait_time}ms")
         self.save_operations()
         self.populate_operation_list()
 
     def add_scroll_operation(self, scroll_time, position):
+        # 将滚轮操作加入operations，随后打印出来
         self.operations.insert(position, f"滚轮：{scroll_time}步")
         self.save_operations()
         self.populate_operation_list()
 
     def add_keyboard_operation(self, key_position, position):
+        # 将键盘操作加入operations，随后打印出来
         self.operations.insert(position, f"键盘操作：按键位置 - {key_position}")
         self.save_operations()
         self.populate_operation_list()
 
     def add_mouse_operation(self, click_position, position):
+        # 将鼠标操作加入operations，随后打印出来
         self.operations.insert(position, f"鼠标操作：点击位置 - {click_position}")
         self.save_operations()
         self.populate_operation_list()
 
     def add_close_operation_window(self, position):
+        # 打开关闭扫描窗口并且记录关闭扫描位置
         close_window = tk.Toplevel(self.ui)
         close_window.title("关闭扫描")
         close_window.geometry("300x200")
@@ -584,6 +723,7 @@ class TabController:
         confirm_button.pack(pady=5)
 
     def add_drag_operation_window(self, position):
+        # 打开记录拖动窗口并且记录拖动起始位置与结束位置
         self.ui.iconify()
         pstart = None
         pend = None
@@ -619,6 +759,7 @@ class TabController:
         drag_window.focus_set()
 
     def add_start_operation_window(self, position):
+        # 打开打开操作窗口并且记录打开的扫描
         start_window = tk.Toplevel(self.ui)
         start_window.title("开始扫描")
         start_window.geometry("300x200")
@@ -654,6 +795,7 @@ class TabController:
         confirm_button.pack(pady=5)
 
     def add_pathfinding_operation_window(self, position):
+        # 打开自动寻路窗口并且记录寻路位置偏差
         pathfinding_window = tk.Toplevel(self.ui)
         pathfinding_window.title("自动寻路")
         pathfinding_window.geometry("300x200")
@@ -688,6 +830,7 @@ class TabController:
         pathfinding_button.pack(pady=5)
 
     def add_wait_operation_window(self, position):
+        # 打开等待时间窗口并且记录等待时间
         wait_window = tk.Toplevel(self.ui)
         wait_window.title("等待时间")
         wait_window.geometry("300x150")
@@ -703,6 +846,7 @@ class TabController:
         wait_button.pack(pady=5)
 
     def add_scroll_operation_window(self, position):
+        # 打开滚轮窗口记录滚轮步数
         scroll_steps = 0
         scroll_window = tk.Toplevel(self.ui)
         scroll_window.title("滚轮操作")
@@ -732,6 +876,7 @@ class TabController:
         scroll_window.bind("<MouseWheel>", on_mouse_wheel)
 
     def add_keyboard_operation_window(self, position):
+        # 打开键盘窗口并且记录下一个按下的按键
         keyboard_window = tk.Toplevel(self.ui)
         keyboard_window.title("键盘操作")
         keyboard_window.geometry("300x200")
@@ -780,6 +925,7 @@ class TabController:
         keyboard_window.bind("<Key>", record_key_press)
 
     def add_mouse_operation_window(self, position):
+        # 打开鼠标窗口并且记录下一个鼠标点击的位置
         self.ui.iconify()
         mouse_window = tk.Toplevel(self.ui)
         mouse_window.attributes('-alpha', 0.3)  # Set transparency
@@ -799,6 +945,7 @@ class TabController:
         mouse_window.bind("<Button-1>", record_click_position)
 
     def execute_operations(self):
+        # 执行操作函数
         for operation in self.operations:
             if operation.startswith("等待"):
                 wait_time = int(operation.split("：")[1].strip("ms"))
@@ -852,6 +999,7 @@ class TabController:
     pass
 
     def load_operations(self, file_path):
+        # 读取给定文件路径下的内容并且加入自己的self.operations中
         try:
             with open(file_path, "r") as file:
                 data = file.read()
@@ -866,6 +1014,7 @@ class TabController:
             return []
 
     def load_data_operations(self, data):
+        # 读取给定data中的内容并且加入自己的self.operations中
         operation_names = []
         for item in data:
             for key, value in item.items():
@@ -875,12 +1024,23 @@ class TabController:
         self.save_operations()
 
     def add_default_operations(self):
-        with open("default_operation.json", 'r', encoding='utf-8') as file:
-            data = json.load(file)
-            self.operations = data["default_operations"]
-            self.save_operations()
+        # 将默认的操作信息加入cache缓存
+        try:
+            with open("default_operation.json", "r",encoding = "utf-8") as file:
+                data = file.read()
+                if not data:  # 检查数据是否为空
+                    self.operations = []
+                else:
+                    data = json.loads(data)
+                    operation_names = [data.get(str(key), {}).get("operation_name", "") for key in data if
+                                       key.isdigit()]
+                    self.operations = operation_names
+        except FileNotFoundError:
+            self.operations = []
+        self.save_operations()
 
     def save_operations(self):
+        # 保存操作列表到file_path(写入cache)的位置
         with open(self.file_path, "w") as json_file:
             data = {}
             i = 0
@@ -892,6 +1052,7 @@ class TabController:
             json.dump(data, json_file)
 
     def populate_operation_list(self):
+        # 打印操作列表
         self.tab.tk_table_operation_box.delete(*self.tab.tk_table_operation_box.get_children())  # Clear the table
         # 遍历操作列表，逐行插入数据
         for i, operation in enumerate(self.operations, start=1):
@@ -899,14 +1060,14 @@ class TabController:
             self.tab.tk_table_operation_box.insert("", i, values=(i, operation_name, operation))
 
     def add_default_photos(self):
+        # 将默认的图片信息加入cache缓存
         with open(self.photo_path, "w") as json_file:
             with open("default_photo.json", "r", encoding='utf-8') as default_file:
                 data = json.load(default_file)  # 读取位于default_photo.json中的默认图片信息
             json.dump(data, json_file)  # 写入缓存
 
-    def save_photos(self):
-        with open(self.photo_path, "w") as json_file:
-            data = {
+    def save_photos(self, default_photo=None , getdata=None):
+        data = {
                 "地址1": self.selection1_address,
                 "地址2": self.selection2_address,
                 "地址3": self.selection3_address,
@@ -923,14 +1084,23 @@ class TabController:
                 "图片2的与或非": self.tab.tk_select_box_photo2_switch_box.get(),
                 "图片3的与或非": self.tab.tk_select_box_photo3_switch_box.get(),
                 "图片4的与或非": self.tab.tk_select_box_photo4_switch_box.get()}
+        if default_photo is None:
+            write_path = self.photo_path
+        else:
+            write_path = default_photo
+        if getdata is not None:
+            return data
+        # 保存图片信息到图片缓存cache中
+        with open(write_path, "w") as json_file:
             json.dump(data, json_file)
 
     def populate_photo_address(self, photo_path, load_if=True):
+        # 显示图片相关地址
         if load_if is True:
             with open(photo_path, "r") as json_file:
-                data = json.load(json_file)
+                data = json.load(json_file)  # 如果是手动读取,那么photo_path作为json地址读取
         else:
-            data = photo_path
+            data = photo_path     # 如果是自动读取,那么photo_path作为data读取
         self.selection1_address = data["地址1"]
         self.selection2_address = data["地址2"]
         self.selection3_address = data["地址3"]
@@ -954,6 +1124,7 @@ class TabController:
         self.select_photo_show()
 
     def handle_escape(self, event):
+        # 处理esc退出的事件
         self.keep_scanning = False
         for sub_window in self.sub_windows:
             sub_window.stop_scanning()

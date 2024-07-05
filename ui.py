@@ -42,13 +42,14 @@ class WinGUI(Window):
         self.title("脚本运行器")
         # 设置窗口大小、居中
         width = 810
-        height = 520
+        height = 535
         screenwidth = self.winfo_screenwidth()
         screenheight = self.winfo_screenheight()
         geometry = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
         self.geometry(geometry)
         self.focus_force()  # 窗口置顶
         self.resizable(width=False, height=False)
+        # self.iconbitmap('menu.ico')
 
     def on_close(self):
         # 清空 operation_cache.json 文件内容

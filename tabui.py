@@ -137,11 +137,40 @@ class TabGUI(Frame):
         # 图片文件地址文本框
         self.tk_input_scan_photo_text = self.__tk_input_scan_photo_text(self.tk_frame_scan_detail_container)
         # 操作文件地址文本框
+        self.tk_input_scan_operation_text = self.__tk_input_scan_operation_text( self.tk_frame_scan_detail_container)
+
+        # 重启此次扫描
         self.tk_button_scan_reopen_button = self.__tk_button_scan_reopen_button( self.tk_frame_scan_detail_container)
-        # 重启
-        self.tk_button_scan_default_photo = self.__tk_button_scan_default_photo( self.tk_frame_scan_detail_container)
-        self.tk_button_scan_default_operation = self.__tk_button_scan_default_operation( self.tk_frame_scan_detail_container)
+
+        # 设置默认图片
+        self.tk_button_set_default_photo = self.__tk_button_set_default_photo( self.tk_frame_scan_detail_container)
+        # 设置默认操作
+        self.tk_button_set_default_operation = self.__tk_button_set_default_operation( self.tk_frame_scan_detail_container)
+        # 设置默认快捷键
+        self.tk_button_set_default_key = self.__tk_button_set_default_key( self.tk_frame_scan_detail_container)
+        # 设置相似度
+        self.tk_button_set_default_similar = self.__tk_button_set_default_similar( self.tk_frame_scan_detail_container)
+
+        self.label_value = tk.StringVar()
+        self.label_value.set("75%")
+        # 相似度拉条
+        self.tk_scale_num_similar = self.__tk_scale_num_similar( self.tk_frame_scan_detail_container)
+        # 相似度标签
+        self.tk_label_label_similar = self.__tk_label_label_similar( self.tk_frame_scan_detail_container)
         # 设计默认值按钮
+        self.tk_button_checkout_backlog = self.__tk_button_checkout_backlog( self.tk_frame_scan_detail_container)
+
+        self.offset_value = tk.StringVar()
+        self.offset_value.set("小")
+        self.label_texts = ["小", "中", "大"]
+        # 偏移值拉条
+        self.tk_scale_num_random_offset = self.__tk_scale_num_random_offset(self.tk_frame_scan_detail_container, self.label_texts)
+        # 偏移值标签
+        self.tk_label_label_random_offset = self.__tk_label_label_random_offset(self.tk_frame_scan_detail_container)
+        # 设计偏移值按钮
+        self.tk_button_random_offset = self.__tk_button_random_offset(self.tk_frame_scan_detail_container)
+        # 强相似/弱相似
+        self.tk_select_box_check_out_box = self.__tk_select_box_check_out_box(self.tk_frame_scan_detail_container)
 
         self.ctl = tab_controller(self)
         self.ui = ui
@@ -538,49 +567,158 @@ class TabGUI(Frame):
         ipt.place(x=86, y=45, width=150, height=30)
         return ipt
 
+    def __tk_input_scan_operation_text(self,parent):
+        ipt = Entry(parent, bootstyle="primary")
+        ipt.place(x=317, y=45, width=150, height=30)
+        return ipt
+
     def __tk_button_scan_reopen_button(self,parent):
         btn = Button(parent, text="初始化此扫描", takefocus=False,bootstyle="primary")
         btn.place(x=6, y=335, width=565, height=55)
         return btn
-    def __tk_button_scan_default_photo(self,parent):
+    def __tk_button_set_default_photo(self,parent):
         btn = Button(parent, text="设置默认图片", takefocus=False,bootstyle="dark")
-        btn.place(x=6, y=275, width=280, height=49)
+        btn.place(x=6, y=275, width=135, height=50)
         return btn
-    def __tk_button_scan_default_operation(self,parent):
+    def __tk_button_set_default_operation(self,parent):
         btn = Button(parent, text="设置默认事件", takefocus=False,bootstyle="dark")
-        btn.place(x=290, y=275, width=280, height=49)
+        btn.place(x=288, y=275, width=135, height=49)
         return btn
+    def __tk_button_set_default_key(self,parent):
+        btn = Button(parent, text="设置快捷键", takefocus=False,bootstyle="default")
+        btn.place(x=147, y=275, width=135, height=50)
+        return btn
+    def __tk_button_set_default_similar(self,parent):
+        btn = Button(parent, text="设置相似度", takefocus=False,bootstyle="default")
+        btn.place(x=428, y=275, width=135, height=49)
+        return btn
+    def __tk_scale_num_similar(self,parent):
+        def update_label(scale_value):
+            integer_value = int(float(scale_value))  # 转换为整数
+            self.label_value.set(f"{integer_value}%")
+        scale = Scale(parent, from_=0, to=100, orient=HORIZONTAL, bootstyle="info", command=update_label)
+        scale.set(75)
+        scale.place(x=286, y=233, width=150, height=30)
+        return scale
+    def __tk_label_label_similar(self,parent):
+        label = Label(parent,textvariable=self.label_value,anchor="center", bootstyle="info")
+        label.place(x=444, y=233, width=113, height=30)
+        return label
+    def __tk_button_checkout_backlog(self,parent):
+        btn = Button(parent, text="查看错误日志", takefocus=False,bootstyle="info")
+        btn.place(x=6, y=233, width=270, height=30)
+        return btn
+    def __tk_button_random_offset(self,parent):
+        btn = Button(parent, text="设置随机偏移", takefocus=False,bootstyle="default")
+        btn.place(x=8, y=190, width=270, height=30)
+        return btn
+    def __tk_scale_num_random_offset(self,parent, label_texts):
+        # 设置偏移量大小的scale控件
+        updating_position = False
+        def update_label(scale_value):
+            nonlocal updating_position
+            scale_int_value = int(float(scale_value))
+            if scale_int_value < 25:
+                scale_int_value = 0
+            elif scale_int_value < 75:
+                scale_int_value = 50
+            else:
+                scale_int_value = 100
+            self.offset_value.set(label_texts[scale_int_value // 50])
+
+            if not updating_position:
+                updating_position = True
+                scale.set(scale_int_value)
+                updating_position = False
+
+        scale = Scale(parent, from_=0, to=100, orient=HORIZONTAL, bootstyle="primary", command=update_label)
+        scale.set(0)
+        scale.place(x=286, y=190, width=150, height=30)
+        update_label(scale.get())
+        return scale
+    def __tk_label_label_random_offset(self,parent):
+        label = Label(parent,textvariable=self.offset_value, anchor="center", bootstyle="primary")
+        label.place(x=444, y=190, width=113, height=30)
+        return label
+    def __tk_select_box_check_out_box(self,parent):
+        cb = Combobox(parent, state="readonly", bootstyle="default")
+        cb['values'] = ("强相似","弱相似")
+        cb.current(0)
+        cb.place(x=10, y=143, width=150, height=30)
+        return cb
 
     def __event_bind(self):
+        #开始扫描
         self.tk_button_start_scanning_button.bind('<Button-1>', self.ctl.start_scanning)
+        #循环次数
         self.tk_select_box_circle_time_checkbox.bind('<<ComboboxSelected>>',
                                                          lambda event: self.ctl.confirm_selection(event,
                                                                                                   self.tk_select_box_circle_time_checkbox.get()))
+        # 确认地址
         self.tk_select_box_photo_address.bind('<<ComboboxSelected>>',self.ctl.confirm_address_selection)
+        # 4号图片位置
         self.tk_button_photo4_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 4))
+        # 3号图片位置
         self.tk_button_photo3_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 3))
+        # 2号图片位置
         self.tk_button_photo2_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 2))
+        # 1号图片位置
         self.tk_button_photo1_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 1))
+        # 单独图片保存
         self.tk_button_save_photo_button.bind('<Button-1>', self.ctl.save_photo_context)
+        # 单独图片读取
         self.tk_button_load_photo_button.bind('<Button-1>', self.ctl.load_photo_context)
+
+        # 修改操作按钮
         self.tk_button_operation_change_button.bind('<Button-1>', self.ctl.operation_change)
+        # 删除操作按钮
         self.tk_button_operation_delete_button.bind('<Button-1>', self.ctl.operation_delete)
+        # 添加操作按钮
         self.tk_button_operation_add_button.bind('<Button-1>', self.ctl.operation_add)
+        # 单独操作保存
         self.tk_button_save_operation_button.bind('<Button-1>', self.ctl.save_operation_context)
+        # 单独操作读取
         self.tk_button_load_operation_button.bind('<Button-1>', self.ctl.load_operation_context)
+
+        # 图片位置读取
         self.tk_button_scan_browser1_button.bind('<Button-1>', self.ctl.scan_browser1_enter)
+        # 操作位置读取
         self.tk_button_scan_browser2_button.bind('<Button-1>', self.ctl.scan_browser2_enter)
+        # 操作图片合成输出
         self.tk_button_scan_output.bind('<Button-1>', self.ctl.scan_output_enter)
+
+        # 重新初始化
         self.tk_button_scan_reopen_button.bind('<Button-1>', self.ctl.scan_reopen_enter)
-        self.tk_button_scan_default_photo.bind('<Button-1>',self.ctl.set_default_photo)
-        self.tk_button_scan_default_operation.bind('<Button-1>',self.ctl.set_default_operation)
+
+        # 设置默认图片
+        self.tk_button_set_default_photo.bind('<Button-1>',self.ctl.set_default_photo)
+        # 设置默认操作
+        self.tk_button_set_default_operation.bind('<Button-1>',self.ctl.set_default_operation)
+        # 设置默认快捷键
+        self.tk_button_set_default_key.bind('<Button-1>',self.ctl.set_default_key)
+        # 设置默认相似度
+        self.tk_button_set_default_similar.bind('<Button-1>',lambda event: self.ctl.set_default_similar(event, self.label_value.get()))
+
+        # 读取日志
+        self.tk_button_checkout_backlog.bind('<Button-1>',self.ctl.check_out_log)
+
+        # 设置偏差值
+        self.tk_button_random_offset.bind('<Button-1>',self.ctl.set_random_offset)
+        # 设置强相似/弱相似
+        self.tk_select_box_check_out_box.bind('<<ComboboxSelected>>',self.ctl.set_default_check)
+
+        # 手动框选
         self.tk_button_select_button.bind('<Button-1>', self.ctl.start_grab_window)
+        # 手动截图
         self.tk_button_select_photo_button.bind('<Button-1>', self.ctl.start_grab_photo_window)
+        # 选择图片地址显示
         self.tk_button_select_photo_show.bind('<Button-1>', self.ctl.select_photo_show())
+        # 保存选择图片的地址
         self.tk_button_select_photo_save.bind('<Button-1>', self.ctl.select_photo_save)
         pass
 
     def __style_config(self):
+        # 更改字体大小
         sty = Style()
         sty.configure(self.new_style(self.tk_button_start_scanning_button), font=("微软雅黑", -20, "bold"))
         sty.configure(self.new_style(self.tk_label_scanning_state_label), font=("微软雅黑", -20, "bold underline"))
@@ -594,22 +732,31 @@ class TabGUI(Frame):
         sty.configure(self.new_style(self.tk_button_photo1_browser_button), font=("微软雅黑 Light", -13, "bold"))
         sty.configure(self.new_style(self.tk_button_save_photo_button), font=("微软雅黑", -15, "bold"))
         sty.configure(self.new_style(self.tk_button_load_photo_button), font=("微软雅黑", -15, "bold"))
+
+
         sty.configure(self.new_style(self.tk_label_operation_list_label), font=("微软雅黑", -19, "bold"))
         sty.configure(self.new_style(self.tk_button_operation_change_button), font=("微软雅黑", -20, "bold"))
         sty.configure(self.new_style(self.tk_button_operation_delete_button), font=("微软雅黑", -27, "bold"))
         sty.configure(self.new_style(self.tk_button_operation_add_button), font=("微软雅黑", -20, "bold"))
         sty.configure(self.new_style(self.tk_button_save_operation_button), font=("微软雅黑", -15, "bold"))
         sty.configure(self.new_style(self.tk_button_load_operation_button), font=("微软雅黑", -15, "bold"))
+
         sty.configure(self.new_style(self.tk_label_scan_photo_label), font=("微软雅黑", -20, "bold"))
         sty.configure(self.new_style(self.tk_label_scan_operation_label), font=("微软雅黑", -20, "bold"))
         sty.configure(self.new_style(self.tk_button_scan_browser1_button), font=("微软雅黑", -16, "bold"))
         sty.configure(self.new_style(self.tk_button_scan_browser2_button), font=("微软雅黑", -16, "bold"))
         sty.configure(self.new_style(self.tk_button_scan_output), font=("微软雅黑", -18, "bold"))
+
         sty.configure(self.new_style(self.tk_button_scan_reopen_button),font=("微软雅黑",-25,"bold"))
-        sty.configure(self.new_style(self.tk_button_scan_default_photo),font=("微软雅黑",-20,"bold"))
-        sty.configure(self.new_style(self.tk_button_scan_default_operation),font=("微软雅黑",-20,"bold"))
-        sty.configure(self.new_style(self.tk_button_select_button), font=("微软雅黑", -21, "bold"))
-        sty.configure(self.new_style(self.tk_button_select_photo_button), font=("微软雅黑", -21, "bold"))
+        sty.configure(self.new_style(self.tk_button_set_default_photo),font=("微软雅黑",-18,"bold"))
+        sty.configure(self.new_style(self.tk_button_set_default_operation),font=("微软雅黑",-18,"bold"))
+        sty.configure(self.new_style(self.tk_button_set_default_key),font=("微软雅黑",-18,"bold"))
+        sty.configure(self.new_style(self.tk_button_set_default_similar),font=("微软雅黑",-18,"bold"))
+        sty.configure(self.new_style(self.tk_label_label_similar),font=("微软雅黑",-20,"bold"))
+        sty.configure(self.new_style(self.tk_button_checkout_backlog),font=("微软雅黑",-15,"bold"))
+        sty.configure(self.new_style(self.tk_button_random_offset),font=("微软雅黑",-15,"bold"))
+        sty.configure(self.new_style(self.tk_label_label_random_offset),font=("微软雅黑",-20,"bold"))
+
         sty.configure(self.new_style(self.tk_label_photo_start_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_label_photo_end_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_button_select_photo_show), font=("微软雅黑", -16, "bold"))
