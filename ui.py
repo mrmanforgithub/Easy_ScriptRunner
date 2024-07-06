@@ -52,11 +52,11 @@ class WinGUI(Window):
         # self.iconbitmap('menu.ico')
 
     def on_close(self):
-        # 清空 operation_cache.json 文件内容
-        file_path = "operation_cache.json"
+        # 清空 setting_json/operation_cache.json 文件内容
+        file_path = "setting_json/operation_cache.json"
         with open(file_path, "w") as file:
             file.write("")  # 清空文件内容
-        file_path = "photo_cache.json"
+        file_path = "setting_json/photo_cache.json"
         with open(file_path, "w") as file:
             file.write("")  # 清空文件内容
         print("已清空cache缓存")

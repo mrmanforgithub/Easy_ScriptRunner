@@ -14,21 +14,23 @@ from PIL import Image, ImageGrab
 
 
 class TabController:
-    # 导入UI类后，替换以下的 object 类型，将获得 IDE 属性提示功能
+    # 导入UI类后,替换以下的 object 类型,将获得 IDE 属性提示功能
     ui: object
     tab: object
 
     def __init__(self, tab):
-        self.tab = tab     # 本身的tab页面，用于给自己的tab控件进行操作
+        self.tab = tab     # 本身的tab页面,用于给自己的tab控件进行操作
         self.operation_position = None
         self.operation_content = None
-        self.keep_scanning = False   # 扫描的信标，保证正在扫描
-        self.sub_windows = []   # 子窗口集合，用于调用其他tab
+        self.keep_scanning = False   # 扫描的信标,保证正在扫描
+        self.sub_windows = []   # 子窗口集合,用于调用其他tab
 
-        self.file_path = "operation_cache.json"  # 缓存文件，临时记录操作数据，关闭后清空
-        self.photo_path = "photo_cache.json"  # 缓存文件，临时记录图片数据，关闭后清空
+        self.file_path = "setting_json/operation_cache.json"  # 缓存文件,临时记录操作数据,关闭后清空
+        self.photo_path = "setting_json/photo_cache.json"  # 缓存文件,临时记录图片数据,关闭后清空
+        self.default_file_path = "setting_json/default_operation.json"   # 默认文件,记录开启时导入的操作内容
+        self.default_photo_path = "setting_json/default_photo.json"    # 默认文件,记录开启时导入的图片内容
 
-        self.operations = self.load_operations(self.file_path)
+        self.operations = self.load_operations(self.default_file_path)
         if not self.operations:
             print("新建cache缓存文件")
             self.add_default_operations()
@@ -59,7 +61,7 @@ class TabController:
         self.grab_photo = False
         # 默认的扫描相似度阈值
         self.check_similar = 0.75
-        # 线程池，最大20个同时进行的线程
+        # 线程池,最大20个同时进行的线程
         self.scan_pool = concurrent.futures.ThreadPoolExecutor(max_workers=20)
         self.scan_futures = set()
 
@@ -74,13 +76,13 @@ class TabController:
 
     def init_ui(self, ui):
         """
-        得到UI实例，对组件进行初始化配置
+        得到UI实例,对组件进行初始化配置
         """
         self.ui = ui
         # TODO 组件初始化 赋值操作
 
     def start_scanning(self, evt, max_loops=None):
-        # 开始扫描，读取个个图片框的位置，匹配对应的地址，对应的与或非，然后传参图片匹配算法
+        # 开始扫描,读取个个图片框的位置,匹配对应的地址,对应的与或非,然后传参图片匹配算法
         photo1_if = self.tab.tk_select_box_photo1_switch_box.get()
         photo2_if = self.tab.tk_select_box_photo2_switch_box.get()
         photo3_if = self.tab.tk_select_box_photo3_switch_box.get()
@@ -181,7 +183,7 @@ class TabController:
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if file_path:
             # 复制文件到所选位置
-            shutil.copyfile("photo_cache.json", file_path)
+            shutil.copyfile("setting_json/photo_cache.json", file_path)
         print("保存图片位置到文件")
 
     def load_photo_context(self, evt):
@@ -246,7 +248,7 @@ class TabController:
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if file_path:
             # 复制文件到所选位置
-            shutil.copyfile("operation_cache.json", file_path)
+            shutil.copyfile("setting_json/operation_cache.json", file_path)
         print("保存操作信息到文件")
 
     def load_operation_context(self, evt):
@@ -299,7 +301,7 @@ class TabController:
         with open(self.tab.tk_input_scan_operation_text.get(), 'r') as operation_file:
             operation_data = json.load(operation_file)
 
-        # 读取 photo_cache.json 文件
+        # 读取 setting_json/photo_cache.json 文件
         with open(self.tab.tk_input_scan_photo_text.get(), 'r') as photo_file:
             photo_data = json.load(photo_file)
 
@@ -321,7 +323,7 @@ class TabController:
         default_photo_window.lift()
         default_photo_window.focus_set()
 
-        with open('default_photo.json', 'r', encoding='utf-8') as f:
+        with open('setting_json/default_photo.json', 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         text_widget = tk.Text(default_photo_window, wrap=tk.WORD, width=35, height=20)
@@ -339,7 +341,7 @@ class TabController:
             # Convert the JSON string back to a dictionary
                 settings_data = json.loads(settings_data_str)
             # 保存在默认图片的文件中
-                with open('default_photo.json', 'w', encoding='utf-8') as f:
+                with open('setting_json/default_photo.json', 'w', encoding='utf-8') as f:
                     json.dump(settings_data, f, indent=4, ensure_ascii=False)
                 print("设置默认图片成功.")
                 default_photo_window.destroy()
@@ -362,7 +364,7 @@ class TabController:
         default_operation_window.lift()
         default_operation_window.focus_set()
 
-        with open('default_operation.json', 'r', encoding='utf-8') as f:
+        with open('setting_json/default_operation.json', 'r', encoding='utf-8') as f:
             data = json.load(f)
 
         text_widget = tk.Text(default_operation_window, wrap=tk.WORD, width=44, height=15)
@@ -378,7 +380,7 @@ class TabController:
         def save_settings(settings_data_str):
             try:
                 settings_data = json.loads(settings_data_str)
-                with open('default_operation.json', 'w', encoding='utf-8') as f:
+                with open('setting_json/default_operation.json', 'w', encoding='utf-8') as f:
                     json.dump(settings_data, f, indent=4, ensure_ascii=False)
                 print("设置默认操作成功.")
                 default_operation_window.destroy()
@@ -453,7 +455,7 @@ class TabController:
                 self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
 
     def address_change(self, address_select=None):
-        # 更改地址参数的选项，让地址（x1,y1）,(x2，y2)符合状态
+        # 更改地址参数的选项,让地址（x1,y1）,(x2,y2)符合状态
         if address_select is None:
             address_select = self.tab.tk_select_box_photo_address.get()
             start_address = self.tab.tk_label_photo_start_label.cget("text")
@@ -522,7 +524,7 @@ class TabController:
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
         # 设置相似度阈值
-        similarity_threshold = self.check_similar     # 通过调整阈值来判断相似度，阈值默认0.75
+        similarity_threshold = self.check_similar     # 通过调整阈值来判断相似度,阈值默认0.75
 
         # 判断匹配值是否大于阈值
         if max_val >= similarity_threshold:
@@ -547,7 +549,7 @@ class TabController:
         self.tab.tk_button_start_scanning_button.configure(text="开始扫描")
 
     def scan_loop(self, target_image, photo_if, photo_address, chosen_index, max_loops):
-        # 扫描循环判断（次数无限循环/一次/10次等，并且判断与或非是否满足）chosen_index是1号~4号扫描，max_loops是循环次数
+        # 扫描循环判断（次数无限循环/一次/10次等,并且判断与或非是否满足）chosen_index是1号~4号扫描,max_loops是循环次数
         address_content = self.address_change(address_select=photo_address)
         if address_content == [0, 0, 0, 0]:
             self.tab.tk_label_scanning_state_label.config(text="地址无效")
@@ -650,49 +652,49 @@ class TabController:
         self.manual_selection_window.focus_set()
 
     def add_start_operation(self, chosen_index, position, loop_count):
-        # 将开启扫描操作加入operations，随后打印出来
+        # 将开启扫描操作加入operations,随后打印出来
         self.operations.insert(position, f"开启：{chosen_index}号扫描{loop_count}次")
         self.save_operations()
         self.populate_operation_list()
 
     def add_close_operation(self, chosen_index, position):
-        # 将关闭操作加入operations，随后打印出来
+        # 将关闭操作加入operations,随后打印出来
         self.operations.insert(position, f"关闭：{chosen_index}号扫描")
         self.save_operations()
         self.populate_operation_list()
 
     def add_drag_operation(self, pstart, pend, position):
-        # 将拖动操作加入operations，随后打印出来
+        # 将拖动操作加入operations,随后打印出来
         self.operations.insert(position, f"拖动：({pstart},{pend})")
         self.save_operations()
         self.populate_operation_list()
 
     def add_pathfinding_operation(self, pathfinding_loc, position):
-        # 将寻路操作加入operations，随后打印出来
+        # 将寻路操作加入operations,随后打印出来
         self.operations.insert(position, f"寻路：{pathfinding_loc}")
         self.save_operations()
         self.populate_operation_list()
 
     def add_wait_operation(self, wait_time, position):
-        # 将等待操作加入operations，随后打印出来
+        # 将等待操作加入operations,随后打印出来
         self.operations.insert(position, f"等待：{wait_time}ms")
         self.save_operations()
         self.populate_operation_list()
 
     def add_scroll_operation(self, scroll_time, position):
-        # 将滚轮操作加入operations，随后打印出来
+        # 将滚轮操作加入operations,随后打印出来
         self.operations.insert(position, f"滚轮：{scroll_time}步")
         self.save_operations()
         self.populate_operation_list()
 
     def add_keyboard_operation(self, key_position, position):
-        # 将键盘操作加入operations，随后打印出来
+        # 将键盘操作加入operations,随后打印出来
         self.operations.insert(position, f"键盘操作：按键位置 - {key_position}")
         self.save_operations()
         self.populate_operation_list()
 
     def add_mouse_operation(self, click_position, position):
-        # 将鼠标操作加入operations，随后打印出来
+        # 将鼠标操作加入operations,随后打印出来
         self.operations.insert(position, f"鼠标操作：点击位置 - {click_position}")
         self.save_operations()
         self.populate_operation_list()
@@ -866,7 +868,7 @@ class TabController:
         def on_mouse_wheel(event):
             nonlocal scroll_steps
             # 获取滚轮滚动的方向
-            direction = event.delta // 120  # 正数表示向上滚动，负数表示向下滚动
+            direction = event.delta // 120  # 正数表示向上滚动,负数表示向下滚动
             current_value = int(scroll_entry.get()) if scroll_entry.get() else 0
             scroll_steps = current_value + direction
             # 在这里执行记录滚轮步数的方法
@@ -1001,7 +1003,7 @@ class TabController:
     def load_operations(self, file_path):
         # 读取给定文件路径下的内容并且加入自己的self.operations中
         try:
-            with open(file_path, "r") as file:
+            with open(file_path, "r", encoding="utf-8") as file:
                 data = file.read()
                 if not data:  # 检查数据是否为空
                     return []
@@ -1026,7 +1028,7 @@ class TabController:
     def add_default_operations(self):
         # 将默认的操作信息加入cache缓存
         try:
-            with open("default_operation.json", "r",encoding = "utf-8") as file:
+            with open(self.default_file_path, "r",encoding = "utf-8") as file:
                 data = file.read()
                 if not data:  # 检查数据是否为空
                     self.operations = []
@@ -1054,16 +1056,16 @@ class TabController:
     def populate_operation_list(self):
         # 打印操作列表
         self.tab.tk_table_operation_box.delete(*self.tab.tk_table_operation_box.get_children())  # Clear the table
-        # 遍历操作列表，逐行插入数据
+        # 遍历操作列表,逐行插入数据
         for i, operation in enumerate(self.operations, start=1):
-            operation_name = operation[:2]  # 获取操作名，取前两个字
+            operation_name = operation[:2]  # 获取操作名,取前两个字
             self.tab.tk_table_operation_box.insert("", i, values=(i, operation_name, operation))
 
     def add_default_photos(self):
         # 将默认的图片信息加入cache缓存
         with open(self.photo_path, "w") as json_file:
-            with open("default_photo.json", "r", encoding='utf-8') as default_file:
-                data = json.load(default_file)  # 读取位于default_photo.json中的默认图片信息
+            with open(self.default_photo_path, "r", encoding='utf-8') as default_file:
+                data = json.load(default_file)  # 读取位于setting_json/default_photo.json中的默认图片信息
             json.dump(data, json_file)  # 写入缓存
 
     def save_photos(self, default_photo=None , getdata=None):
@@ -1096,32 +1098,66 @@ class TabController:
 
     def populate_photo_address(self, photo_path, load_if=True):
         # 显示图片相关地址
-        if load_if is True:
-            with open(photo_path, "r") as json_file:
-                data = json.load(json_file)  # 如果是手动读取,那么photo_path作为json地址读取
-        else:
-            data = photo_path     # 如果是自动读取,那么photo_path作为data读取
-        self.selection1_address = data["地址1"]
-        self.selection2_address = data["地址2"]
-        self.selection3_address = data["地址3"]
-        self.selection4_address = data["地址4"]
-        self.tab.tk_input_photo1_text.delete(0, "end")
-        self.tab.tk_input_photo1_text.insert(0, data["图片1的位置"])
-        self.tab.tk_input_photo2_text.delete(0, "end")
-        self.tab.tk_input_photo2_text.insert(0, data["图片2的位置"])
-        self.tab.tk_input_photo3_text.delete(0, "end")
-        self.tab.tk_input_photo3_text.insert(0, data["图片3的位置"])
-        self.tab.tk_input_photo4_text.delete(0, "end")
-        self.tab.tk_input_photo4_text.insert(0, data["图片4的位置"])
-        self.tab.tk_select_box_photo1_scan_box.set(data["图片1的地址"])
-        self.tab.tk_select_box_photo2_scan_box.set(data["图片2的地址"])
-        self.tab.tk_select_box_photo3_scan_box.set(data["图片3的地址"])
-        self.tab.tk_select_box_photo4_scan_box.set(data["图片4的地址"])
-        self.tab.tk_select_box_photo1_switch_box.set(data["图片1的与或非"])
-        self.tab.tk_select_box_photo2_switch_box.set(data["图片2的与或非"])
-        self.tab.tk_select_box_photo3_switch_box.set(data["图片3的与或非"])
-        self.tab.tk_select_box_photo4_switch_box.set(data["图片4的与或非"])
-        self.select_photo_show()
+        try:
+            if load_if:
+                with open(photo_path, "r") as json_file:
+                    data = json.load(json_file)  # 如果是手动读取,那么photo_path作为json地址读取
+            else:
+                data = photo_path     # 如果是自动读取,那么photo_path作为data读取
+            # 对读取内容缺失的调整
+            self.selection1_address = data.get("地址1", [0, 0, 0, 0])
+            self.selection2_address = data.get("地址2", [0, 0, 0, 0])
+            self.selection3_address = data.get("地址3", [0, 0, 0, 0])
+            self.selection4_address = data.get("地址4", [0, 0, 0, 0])
+
+            self.tab.tk_input_photo1_text.delete(0, "end")
+            self.tab.tk_input_photo1_text.insert(0, data.get("图片1的位置", ""))
+            self.tab.tk_input_photo2_text.delete(0, "end")
+            self.tab.tk_input_photo2_text.insert(0, data.get("图片2的位置", ""))
+            self.tab.tk_input_photo3_text.delete(0, "end")
+            self.tab.tk_input_photo3_text.insert(0, data.get("图片3的位置", ""))
+            self.tab.tk_input_photo4_text.delete(0, "end")
+            self.tab.tk_input_photo4_text.insert(0, data.get("图片4的位置", ""))
+
+            self.tab.tk_select_box_photo1_scan_box.set(data.get("图片1的地址", "地址1"))
+            self.tab.tk_select_box_photo2_scan_box.set(data.get("图片2的地址", "地址1"))
+            self.tab.tk_select_box_photo3_scan_box.set(data.get("图片3的地址", "地址1"))
+            self.tab.tk_select_box_photo4_scan_box.set(data.get("图片4的地址", "地址1"))
+
+            self.tab.tk_select_box_photo1_switch_box.set(data.get("图片1的与或非", "与"))
+            self.tab.tk_select_box_photo2_switch_box.set(data.get("图片2的与或非", "与"))
+            self.tab.tk_select_box_photo3_switch_box.set(data.get("图片3的与或非", "与"))
+            self.tab.tk_select_box_photo4_switch_box.set(data.get("图片4的与或非", "与"))
+
+            self.select_photo_show()
+
+        except (IOError, json.JSONDecodeError, KeyError) as e:
+            # 如果json内部键值错误
+            print(f"Error: {e}. Setting data to default values.")
+            self.selection1_address = [0, 0, 0, 0]
+            self.selection2_address = [0, 0, 0, 0]
+            self.selection3_address = [0, 0, 0, 0]
+            self.selection4_address = [0, 0, 0, 0]
+            self.tab.tk_input_photo1_text.delete(0, "end")
+            self.tab.tk_input_photo1_text.insert(0, "")
+            self.tab.tk_input_photo2_text.delete(0, "end")
+            self.tab.tk_input_photo2_text.insert(0, "")
+            self.tab.tk_input_photo3_text.delete(0, "end")
+            self.tab.tk_input_photo3_text.insert(0, "")
+            self.tab.tk_input_photo4_text.delete(0, "end")
+            self.tab.tk_input_photo4_text.insert(0, "")
+
+            self.tab.tk_select_box_photo1_scan_box.set("地址1")
+            self.tab.tk_select_box_photo2_scan_box.set("地址1")
+            self.tab.tk_select_box_photo3_scan_box.set("地址1")
+            self.tab.tk_select_box_photo4_scan_box.set("地址1")
+
+            self.tab.tk_select_box_photo1_switch_box.set("与")
+            self.tab.tk_select_box_photo2_switch_box.set("与")
+            self.tab.tk_select_box_photo3_switch_box.set("与")
+            self.tab.tk_select_box_photo4_switch_box.set("与")
+
+            self.select_photo_show()
 
     def handle_escape(self, event):
         # 处理esc退出的事件
