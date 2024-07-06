@@ -2,7 +2,7 @@ from tkinter import *
 from pytkUI.widgets import *
 from ttkbootstrap import *
 from tabui import TabGUI
-
+from ToolTip import *
 
 class SingletonMeta(type):
     _instances = {}
@@ -59,7 +59,6 @@ class WinGUI(Window):
         file_path = "setting_json/photo_cache.json"
         with open(file_path, "w") as file:
             file.write("")  # 清空文件内容
-        print("已清空cache缓存")
         # 关闭窗口
         self.destroy()
 
@@ -118,6 +117,7 @@ class Win(WinGUI):
         super().__init__()
         self.__event_bind()
         self.config(menu=self.create_menu())
+        self.add_tooltips()
         self.ctl.init(self)
 
     def create_menu(self):
@@ -139,6 +139,14 @@ class Win(WinGUI):
         self.ext_icon_tab_stop_icon.bind('<Button-1>', self.ctl.tab_stop_enter)
         self.ext_icon_tab_question_icon.bind('<Button-1>', self.ctl.tab_question_enter)
         pass
+    def add_tooltips(self):
+        # 为按钮创建浮动标签，可以查看按钮的作用
+        create_tooltip(self.ext_icon_tab_delete_icon, "删除此页扫描")
+        create_tooltip(self.ext_icon_tab_change_icon, "修改这页扫描的名称")
+        create_tooltip(self.ext_icon_tab_add_icon, "创建一个新的扫描")
+        create_tooltip(self.ext_icon_tab_play_icon, "循环开始所有的扫描")
+        create_tooltip(self.ext_icon_tab_stop_icon, "停止当前所有的扫描")
+        create_tooltip(self.ext_icon_tab_question_icon, "查看小贴士")
 
 
 if __name__ == "__main__":

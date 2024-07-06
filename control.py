@@ -47,7 +47,6 @@ class Controller:
                     self.tabs[i].ctl.populate_photo_address(images_data[i], load_if=False)
                     self.tabs[i].ctl.load_data_operations(operations_data[i])
                     self.tabs[i].ctl.populate_operation_list()
-        print("加载脚本")
 
     def save_all_scripts(self):
         data = {
@@ -105,7 +104,6 @@ class Controller:
             index = self.ui.tk_tabs_first_tab.index(current_tab)  # 获取选项卡的索引
             del self.ui.all_tabs[index]
             self.ui.tk_tabs_first_tab.forget(current_tab)
-        print("删除扫描")
 
     def tab_change_enter(self, evt):
         current_tab = self.ui.tk_tabs_first_tab.select()
@@ -114,7 +112,6 @@ class Controller:
             new_name = askstring("修改扫描名", "请输入新的扫描名", initialvalue=tab_name)
             if new_name:
                 self.ui.tk_tabs_first_tab.tab(current_tab, text=new_name)
-        print("修改扫描名称")
 
     def tab_add_enter(self, evt):
         tab_name = f"Tab {len(self.ui.tk_tabs_first_tab.tabs())}"
@@ -123,14 +120,12 @@ class Controller:
             self.ui.new_tab = self.ui.create_tab(self.ui.tk_tabs_first_tab)
             self.ui.tk_tabs_first_tab.add(self.ui.new_tab, text=new_name)
             self.tabs = self.ui.all_tabs
-        print("打开新的扫描")
 
     def tab_play_enter(self, evt):
         if self.keep_scanning is not True:
             self.keep_scanning = True
             scanning_thread = threading.Thread(target=self.scanning_looper, args=(evt,))
             scanning_thread.start()
-        print("开启所有扫描")
 
     def scanning_looper(self, evt):
         while self.keep_scanning is True:
@@ -149,7 +144,6 @@ class Controller:
             self.keep_scanning = False
         for tab in self.tabs:
             tab.ctl.stop_scanning()
-        print("停止所有扫描")
 
     def tab_question_enter(self, evt):
         messagebox.showinfo("提示", "侧边栏内容（从上到下）"
@@ -157,4 +151,6 @@ class Controller:
                                     "\n2.修改选中扫描单名称"
                                     "\n3.创建新的扫描单"
                                     "\n4.开启所有扫描"
-                                    "\n5.关闭所有扫描")
+                                    "\n5.关闭所有扫描"
+                                    "\n鼠标移动上去0.5s"
+                                    "\n会告诉你按钮的作用")

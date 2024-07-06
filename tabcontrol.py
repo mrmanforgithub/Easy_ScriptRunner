@@ -32,7 +32,6 @@ class TabController:
 
         self.operations = self.load_operations(self.default_file_path)
         if not self.operations:
-            print("新建cache缓存文件")
             self.add_default_operations()
         self.max_loc = None
 
@@ -102,7 +101,7 @@ class TabController:
             if future.done():
                 self.scan_futures.remove(future)  # 移除已完成的任务
         if len(self.scan_futures) >= 20:
-            print("太多扫描正在同时运行了！")
+            ("太多扫描正在同时运行了！")
             return
         if self.scanning:
             self.stop_scanning()
@@ -144,7 +143,7 @@ class TabController:
             self.max_loops = 1
         elif selection == "循环10次":
             self.max_loops = 10
-        print(self.max_loops)
+        (self.max_loops)
 
     def confirm_address_selection(self, evt):
         # 确认地址选择后显示出来
@@ -184,7 +183,7 @@ class TabController:
         if file_path:
             # 复制文件到所选位置
             shutil.copyfile("setting_json/photo_cache.json", file_path)
-        print("保存图片位置到文件")
+        ("保存图片位置到文件")
 
     def load_photo_context(self, evt):
         # 单独读取图片文件内容
@@ -194,11 +193,11 @@ class TabController:
                                                filetypes=(("Json files", "*.json"), ("All files", "*.*")))
         if file_path:
             self.populate_photo_address(file_path)
-        print("从文件中读取具体图片位置")
+        ("从文件中读取具体图片位置")
 
     def operation_change(self, evt):
         # 修改操作
-        print("修改操作列表")
+        ("修改操作列表")
         selected_item = self.tab.tk_table_operation_box.selection()
         if selected_item:
             selected_index = self.tab.tk_table_operation_box.index(selected_item[0])
@@ -209,7 +208,7 @@ class TabController:
 
     def operation_delete(self, evt):
         # 删除操作
-        print("删除操作内容")
+        ("删除操作内容")
         selected_item = self.tab.tk_table_operation_box.selection()
         if selected_item:
             selected_index = self.tab.tk_table_operation_box.index(selected_item[0])
@@ -249,7 +248,6 @@ class TabController:
         if file_path:
             # 复制文件到所选位置
             shutil.copyfile("setting_json/operation_cache.json", file_path)
-        print("保存操作信息到文件")
 
     def load_operation_context(self, evt):
         # 单独读取操作文件内容
@@ -262,7 +260,6 @@ class TabController:
                 self.operations = self.load_operations(file_path)
                 self.save_operations()
                 self.populate_operation_list()
-        print("从文件中读取具体操作信息")
 
     def scan_browser1_enter(self, evt):
         # 图片文件读取
@@ -278,7 +275,6 @@ class TabController:
                                                                    ("Json files", "*.json"), ("all files", "*.*")))
         self.tab.tk_input_scan_photo_text.delete(0, tk.END)
         self.tab.tk_input_scan_photo_text.insert(0, target_image_path_str)
-        print("打开图片保存文件浏览窗口")
 
     def scan_browser2_enter(self, evt):
         # 操作文件读取
@@ -294,7 +290,6 @@ class TabController:
                                                                    ("Json files", "*.json"), ("all files", "*.*")))
         self.tab.tk_input_scan_operation_text.delete(0, tk.END)
         self.tab.tk_input_scan_operation_text.insert(0, target_image_path_str)
-        print("打开操作保存文件浏览窗口")
 
     def scan_output_enter(self, evt):
         # 将图片文件+操作文件组合输出
@@ -313,7 +308,6 @@ class TabController:
         # 写入新的 JSON 文件
         with open(file_path, 'w') as merged_file:
             json.dump(merged_data, merged_file, ensure_ascii=False, indent=4)
-        print("输出组合内容")
 
     def set_default_photo(self, evt):
         # 打开默认图片设置窗口并且记录默认图片信息
@@ -343,16 +337,14 @@ class TabController:
             # 保存在默认图片的文件中
                 with open('setting_json/default_photo.json', 'w', encoding='utf-8') as f:
                     json.dump(settings_data, f, indent=4, ensure_ascii=False)
-                print("设置默认图片成功.")
                 default_photo_window.destroy()
             except Exception as e:
-                print(f"保存设置时出错: {e}")
+                return
 
         def load_settings():
             data = self.save_photos(default_photo=None,getdata="1")
             text_widget.delete("1.0", tk.END)
             text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
-            print("导入本扫描图片成功.")
 
 
 
@@ -382,10 +374,9 @@ class TabController:
                 settings_data = json.loads(settings_data_str)
                 with open('setting_json/default_operation.json', 'w', encoding='utf-8') as f:
                     json.dump(settings_data, f, indent=4, ensure_ascii=False)
-                print("设置默认操作成功.")
                 default_operation_window.destroy()
             except Exception as e:
-                print(f"保存设置时出错: {e}")
+                return
 
         def load_settings():
             data = {}
@@ -397,37 +388,33 @@ class TabController:
                 i = i + 1
             text_widget.delete("1.0", tk.END)
             text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
-            print("导入本扫描操作成功.")
 
     def set_default_key(self, evt):
-        print("设置默认快捷键")
+        return
 
     def set_default_similar(self, evt, similar):
         # 设置相似度
         numeric_value_str = similar.replace('%', '')
         numeric_value = float(numeric_value_str) / 100.0
         self.check_similar = numeric_value
-        print(f"设置相似度{numeric_value}")
 
     def check_out_log(self, evt):
-        print("查看日志")
+        return
 
     def scan_reopen_enter(self, evt):
-        print("重启本次扫描")
+        return
 
     def set_random_offset(self, evt):
-        print("设置偏差值")
+        return
 
     def set_default_check(self, evt):
-        print("设置强相似/弱相似")
+        return
 
     def start_grab_window(self, evt):
-        print("打开框选窗口")
         self.open_manual_selection_window()
 
     def start_grab_photo_window(self, evt):
         self.grab_photo = True
-        print("打开截图窗口")
         self.open_manual_selection_window()
 
     def select_photo_show(self):
@@ -493,7 +480,6 @@ class TabController:
     def select_photo_save(self, evt):
         # 保存对应地址1~4的函数
         selected_address = self.address_change()
-        print(f"保存成功-{selected_address}")
         self.tab.tk_button_select_photo_show.config(text="成功")
         self.ui.after(1000, lambda: self.tab.tk_button_select_photo_show.config(text="显示"))
         self.save_photos()
@@ -589,7 +575,7 @@ class TabController:
                 self.ui.after(100,
                               lambda: self.scan_loop(target_image, photo_if, photo_address, chosen_index, max_loops))
             else:
-                print("结束扫描")
+                ("结束扫描")
                 self.stop_scanning()
 
     def open_manual_selection_window(self):
@@ -1133,7 +1119,6 @@ class TabController:
 
         except (IOError, json.JSONDecodeError, KeyError) as e:
             # 如果json内部键值错误
-            print(f"Error: {e}. Setting data to default values.")
             self.selection1_address = [0, 0, 0, 0]
             self.selection2_address = [0, 0, 0, 0]
             self.selection3_address = [0, 0, 0, 0]

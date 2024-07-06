@@ -4,6 +4,7 @@ from tkinter.ttk import *
 from ttkbootstrap import *
 from pytkUI.widgets import *
 from tabcontrol import TabController as tab_controller
+from ToolTip import *
 
 class TabGUI(Frame):
     ui: object
@@ -92,8 +93,7 @@ class TabGUI(Frame):
         self.tk_label_photo_start_label = self.__tk_label_photo_start_label(self.tk_frame_select_box)
         # 地址结束坐标
         self.tk_label_photo_end_label = self.__tk_label_photo_end_label(self.tk_frame_select_box)
-        # 显示地址坐标按钮
-        self.tk_button_select_photo_show = self.__tk_button_select_photo_show(self.tk_frame_select_box)
+
         # 记录地址坐标按钮
         self.tk_button_select_photo_save = self.__tk_button_select_photo_save(self.tk_frame_select_box)
 
@@ -157,7 +157,7 @@ class TabGUI(Frame):
         self.tk_scale_num_similar = self.__tk_scale_num_similar( self.tk_frame_scan_detail_container)
         # 相似度标签
         self.tk_label_label_similar = self.__tk_label_label_similar( self.tk_frame_scan_detail_container)
-        # 设计默认值按钮
+        # 查看错误日志
         self.tk_button_checkout_backlog = self.__tk_button_checkout_backlog( self.tk_frame_scan_detail_container)
 
         self.offset_value = tk.StringVar()
@@ -175,6 +175,7 @@ class TabGUI(Frame):
         self.ctl = tab_controller(self)
         self.ui = ui
         self.ctl.init_ui(self.ui)
+        self.add_tooltips()
         self.__style_config()
         self.__event_bind()
 
@@ -242,7 +243,7 @@ class TabGUI(Frame):
         cb = Combobox(parent, state="readonly", bootstyle="info")
         cb['values'] = ("无限循环", "循环1次", "循环10次")
         cb.current(0)
-        cb.place(x=199, y=6, width=176, height=40)
+        cb.place(x=199, y=6, width=176)
         return cb
     def __tk_frame_second_tab_0(self, parent):
         frame = Frame(parent)
@@ -458,14 +459,9 @@ class TabGUI(Frame):
         label.place(x=213, y=38, width=63, height=30)
         return label
 
-    def __tk_button_select_photo_show(self, parent):
-        btn = Button(parent, text="显示", takefocus=False, bootstyle="default")
-        btn.place(x=284, y=4, width=65, height=60)
-        return btn
-
     def __tk_button_select_photo_save(self, parent):
         btn = Button(parent, text="记录", takefocus=False, bootstyle="default")
-        btn.place(x=358, y=4, width=65, height=60)
+        btn.place(x=284, y=4, width=130, height=60)
         return btn
 
     def __tk_frame_operation_container(self, parent):
@@ -497,7 +493,7 @@ class TabGUI(Frame):
         cb = Combobox(parent, state="readonly", bootstyle="default")
         cb['values'] = ("等待时间", "键盘操作", "鼠标操作", "鼠标拖动", "滚轮操作", "自动寻路", "开启扫描", "关闭扫描")
         cb.current(0)
-        cb.place(x=140, y=220, width=140, height=50)
+        cb.place(x=140, y=220, width=140)
         return cb
 
     def __tk_table_operation_box(self, parent):
@@ -711,8 +707,7 @@ class TabGUI(Frame):
         self.tk_button_select_button.bind('<Button-1>', self.ctl.start_grab_window)
         # 手动截图
         self.tk_button_select_photo_button.bind('<Button-1>', self.ctl.start_grab_photo_window)
-        # 选择图片地址显示
-        self.tk_button_select_photo_show.bind('<Button-1>', self.ctl.select_photo_show())
+
         # 保存选择图片的地址
         self.tk_button_select_photo_save.bind('<Button-1>', self.ctl.select_photo_save)
         pass
@@ -759,6 +754,43 @@ class TabGUI(Frame):
 
         sty.configure(self.new_style(self.tk_label_photo_start_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_label_photo_end_label), font=("微软雅黑", -12))
-        sty.configure(self.new_style(self.tk_button_select_photo_show), font=("微软雅黑", -16, "bold"))
+
         sty.configure(self.new_style(self.tk_button_select_photo_save), font=("微软雅黑", -16, "bold"))
         pass
+
+    def add_tooltips(self):
+        # 为按钮创建浮动标签，可以查看按钮的作用
+        create_tooltip(self.tk_button_start_scanning_button, "按下开始扫描")
+        create_tooltip(self.tk_label_scanning_state_label, "扫描的当前状态")
+        create_tooltip(self.tk_select_box_circle_time_checkbox, "选择扫描的次数")
+
+        create_tooltip(self.tk_button_photo1_browser_button, "浏览对应图片的文件")
+        create_tooltip(self.tk_select_box_photo1_switch_box, "选择对应图片的扫描逻辑")
+        create_tooltip(self.tk_select_box_photo1_scan_box, "选择对应图片的扫描地址")
+
+        create_tooltip(self.tk_button_load_photo_button, "单独读取图片记录到本页")
+        create_tooltip(self.tk_button_save_photo_button, "单独保存本页图片记录")
+        create_tooltip(self.tk_button_select_button, "手动框选一个扫描地址")
+        create_tooltip(self.tk_button_select_photo_button, "截图并且将框选地址填入")
+        create_tooltip(self.tk_select_box_photo_address, "当前地址信息")
+        create_tooltip(self.tk_button_select_photo_save, "记录下当前地址信息：如果不记录则切换后此次地址记录消失")
+
+        create_tooltip(self.tk_button_operation_change_button, "修改对应行的操作内容")
+        create_tooltip(self.tk_button_operation_delete_button, "删除对应行的操作内容")
+        create_tooltip(self.tk_button_operation_add_button, "添加一行新的操作进入")
+        create_tooltip(self.tk_select_box_operation_list, "选择一项操作，按下添加即可")
+        create_tooltip(self.tk_button_save_operation_button, "单独保存本页操作记录")
+        create_tooltip(self.tk_button_load_operation_button, "单独读取操作记录到本页")
+
+        create_tooltip(self.tk_button_scan_browser1_button, "在文件夹中浏览图片记录")
+        create_tooltip(self.tk_button_scan_browser2_button, "在文件夹中浏览操作记录")
+        create_tooltip(self.tk_button_scan_output, "将图片与操作融合输出一个全局文件")
+        create_tooltip(self.tk_button_scan_reopen_button, "按照默认图片与操作初始化这页的扫描")
+        create_tooltip(self.tk_button_set_default_operation, "设置默认的操作")
+        create_tooltip(self.tk_button_set_default_key, "设置默认的快捷键")
+        create_tooltip(self.tk_button_set_default_similar, "设置扫描相似度的阈值")
+        create_tooltip(self.tk_scale_num_similar, "扫描相似度的滑条")
+        create_tooltip(self.tk_button_set_default_photo, "设置默认的图片记录")
+        create_tooltip(self.tk_button_checkout_backlog, "查看错误日志")
+        create_tooltip(self.tk_select_box_check_out_box, "弱相似：有滤镜变化或者旋转缩放的图片也算做扫描成功  强相似：必须完全相似")
+        create_tooltip(self.tk_button_random_offset, "设置操作位置偏移值，防止被视为机器人")
