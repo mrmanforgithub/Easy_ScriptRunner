@@ -3,19 +3,22 @@ import threading
 import time
 from tkinter import filedialog, messagebox
 from tkinter.simpledialog import askstring
+import keyboard
 
 
 class Controller:
-    # 导入UI类后，替换以下的 object 类型，将获得 IDE 属性提示功能
+    # 导入UI类后,替换以下的 object 类型,将获得 IDE 属性提示功能
     ui: object
 
     def __init__(self, list_name="NewOperation"):
         self.keep_scanning = None
         self.tabs = []
+        self.key_setting_path = "setting_json/key_setting.json"   # 快捷键,默认扫描次数,默认扫描相似度阈值保存位置
+        self.bind_keys(self.key_setting_path)
 
     def init(self, ui):
         """
-        得到UI实例，对组件进行初始化配置
+        得到UI实例,对组件进行初始化配置
         """
         self.ui = ui
         self.tabs = self.ui.all_tabs
@@ -94,9 +97,6 @@ class Controller:
         if file_path:
             with open(file_path, "w") as file:
                 json.dump(data, file)
-            print("脚本已保存至:", file_path)
-        else:
-            print("保存取消")
 
     def tab_delete_enter(self, evt):
         current_tab = self.ui.tk_tabs_first_tab.select()
@@ -122,15 +122,17 @@ class Controller:
             self.tabs = self.ui.all_tabs
 
     def tab_play_enter(self, evt):
+        # 调用循环扫描，完成按扫描次序循环扫描
         if self.keep_scanning is not True:
             self.keep_scanning = True
             scanning_thread = threading.Thread(target=self.scanning_looper, args=(evt,))
             scanning_thread.start()
 
     def scanning_looper(self, evt):
+        # 循环扫描
         while self.keep_scanning is True:
             for tab in self.tabs:
-                if not self.keep_scanning:  # 检查标志位，判断是否需要继续扫描
+                if not self.keep_scanning:  # 检查标志位,判断是否需要继续扫描
                     break
                 tab.tk_select_box_circle_time_checkbox.set("循环1次")
                 tab.ctl.start_scanning(evt, max_loops=1)
@@ -144,6 +146,9 @@ class Controller:
             self.keep_scanning = False
         for tab in self.tabs:
             tab.ctl.stop_scanning()
+        self.ui.focus_force()  # 窗口置顶
+        self.ui.state('normal')  # 恢复正常状态
+        self.ui.lift()  # 将主窗口放置在其他窗口之上
 
     def tab_question_enter(self, evt):
         messagebox.showinfo("提示", "侧边栏内容（从上到下）"
@@ -154,3 +159,30 @@ class Controller:
                                     "\n5.关闭所有扫描"
                                     "\n鼠标移动上去0.5s"
                                     "\n会告诉你按钮的作用")
+        
+    def bind_keys(self, path):
+        default_bindings = {
+        "快捷键": {
+            "循环开启扫描": "F11",
+            "关闭所有扫描": "esc"
+        }}
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                key_bindings = json.load(f)
+        except FileNotFoundError:
+            key_bindings = default_bindings
+            # 如果文件不存在，则创建并写入默认配置
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(default_bindings, f, ensure_ascii=False, indent=2)
+        except json.JSONDecodeError:
+            return
+        if "快捷键" in key_bindings:
+            bindings = key_bindings["快捷键"]
+            for function_desc, key in bindings.items():
+                if function_desc == "循环开启扫描":
+                    keyboard.add_hotkey(key, lambda:self.tab_play_enter(evt=1))
+                elif function_desc == "关闭所有扫描":
+                    keyboard.add_hotkey(key, lambda: self.tab_stop_enter(evt=1))
+                else:
+                    return
+        return

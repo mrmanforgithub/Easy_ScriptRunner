@@ -172,11 +172,17 @@ class TabGUI(Frame):
         # 强相似/弱相似
         self.tk_select_box_check_out_box = self.__tk_select_box_check_out_box(self.tk_frame_scan_detail_container)
 
+        # tab_controller实例化,在ui里可以绑定对应按钮事件函数
         self.ctl = tab_controller(self)
+        # 创建ui对象,这个ui主要用于传递给tab_controller,让tab_controller可以调用侧边栏之类的位置的函数,相反也可以让ui调用这里的
         self.ui = ui
+        # 在ctl中创建这个ui
         self.ctl.init_ui(self.ui)
+        # 添加鼠标移上去显示小贴士
         self.add_tooltips()
+        # 个性化字体设置
         self.__style_config()
+        # 绑定按钮事件
         self.__event_bind()
 
     def scrollbar_autohide(self, vbar, hbar, widget):

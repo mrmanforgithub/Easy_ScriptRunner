@@ -7,7 +7,6 @@ import time
 import tkinter as tk
 from tkinter import filedialog, ttk
 import cv2
-import keyboard
 import numpy as np
 import pyautogui
 from PIL import Image, ImageGrab
@@ -29,12 +28,14 @@ class TabController:
         self.photo_path = "setting_json/photo_cache.json"  # 缓存文件,临时记录图片数据,关闭后清空
         self.default_file_path = "setting_json/default_operation.json"   # 默认文件,记录开启时导入的操作内容
         self.default_photo_path = "setting_json/default_photo.json"    # 默认文件,记录开启时导入的图片内容
+        self.log_path = "setting_json/backlog.txt"   # 错误日志所在位置
+
 
         self.operations = self.load_operations(self.default_file_path)
         if not self.operations:
             self.add_default_operations()
         self.max_loc = None
-
+        # 图片截取目录
         self.image_path = None
 
         self.start_y = None  # 拖动框选的开始位置
@@ -71,7 +72,7 @@ class TabController:
         # 显示默认图片信息
         self.populate_photo_address(self.photo_path)
 
-        keyboard.on_press_key("esc", self.handle_escape)  # 监听全局的 "Escape" 键按下事件
+        
 
     def init_ui(self, ui):
         """
@@ -101,7 +102,6 @@ class TabController:
             if future.done():
                 self.scan_futures.remove(future)  # 移除已完成的任务
         if len(self.scan_futures) >= 20:
-            ("太多扫描正在同时运行了！")
             return
         if self.scanning:
             self.stop_scanning()
@@ -390,7 +390,33 @@ class TabController:
             text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
 
     def set_default_key(self, evt):
-        return
+        # 打开快捷键窗口并且保存进去
+        default_key_window = tk.Toplevel(self.ui)
+        default_key_window.title("设置默认图片")
+        default_key_window.geometry("355x500")
+        default_key_window.lift()
+        default_key_window.focus_set()
+
+        with open('setting_json/key_setting.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        text_widget = tk.Text(default_key_window, wrap=tk.WORD, width=35, height=20)
+        text_widget.grid(row=0, column=0, padx=10, pady=10)
+        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+        
+        save_button = tk.Button(default_key_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
+        save_button.grid(row=1, column=0, pady=10)
+
+        def save_settings(settings_data_str):
+            try:
+                settings_data = json.loads(settings_data_str)
+                with open('setting_json/key_setting.json', 'w', encoding='utf-8') as f:
+                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
+                self.ui.ctl.bind_keys(path = "setting_json/key_setting.json")
+                default_key_window.destroy()
+            except Exception as e:
+                return
+
 
     def set_default_similar(self, evt, similar):
         # 设置相似度
@@ -411,9 +437,11 @@ class TabController:
         return
 
     def start_grab_window(self, evt):
+        # 开启框选窗口
         self.open_manual_selection_window()
 
     def start_grab_photo_window(self, evt):
+        # 开启框选窗口，并且截图
         self.grab_photo = True
         self.open_manual_selection_window()
 
@@ -1144,11 +1172,5 @@ class TabController:
 
             self.select_photo_show()
 
-    def handle_escape(self, event):
-        # 处理esc退出的事件
-        self.keep_scanning = False
-        for sub_window in self.sub_windows:
-            sub_window.stop_scanning()
-        self.ui.focus_force()  # 窗口置顶
-        self.ui.state('normal')  # 恢复正常状态
-        self.ui.lift()  # 将主窗口放置在其他窗口之上
+
+

@@ -63,49 +63,57 @@ class WinGUI(Window):
         self.destroy()
 
     def create_tab(self, parent):
+        # 创建一个新的扫描页,往all_tabs里加入这个页面
         frame = Frame(parent)
         self.all_tabs.append(TabGUI(frame, self))
         return frame
 
     def __tk_tabs_first_tab(self, parent, name):
+        # 创建选项卡界面
         frame = Notebook(parent)
         self.new_tab = self.create_tab(frame)
         frame.add(self.new_tab, text=name)
-
         frame.place(x=10, y=14, width=735, height=490)
         return frame
 
     def __tk_frame_sidebar_label(self, parent):
+        # 创建侧边栏界面
         frame = Frame(parent, bootstyle="default")
         frame.place(x=760, y=0, width=40, height=505)
         return frame
 
     def __ext_icon_tab_delete_icon(self, parent):
+        # 创建删除扫描列icon
         icon = Icon(parent, icon_name="trash-fill", size=27, color="#CD45FF")
         icon.place(x=5, y=11, width=30, height=30)
         return icon
 
     def __ext_icon_tab_change_icon(self, parent):
+        # 创建修改扫描列名称icon
         icon = Icon(parent, icon_name="tools", size=27, color="#CD45FF")
         icon.place(x=5, y=50, width=30, height=30)
         return icon
 
     def __ext_icon_tab_add_icon(self, parent):
+        # 创建添加扫描列icon
         icon = Icon(parent, icon_name="plus-square-fill", size=27, color="#CD45FF")
         icon.place(x=5, y=92, width=30, height=30)
         return icon
 
     def __ext_icon_tab_play_icon(self, parent):
+        # 创建循环开启扫描列icon
         icon = Icon(parent, icon_name="caret-right-square-fill", size=27, color="#CD45FF")
         icon.place(x=5, y=131, width=30, height=30)
         return icon
 
     def __ext_icon_tab_stop_icon(self, parent):
+        # 创建关闭所有扫描列icon
         icon = Icon(parent, icon_name="power", size=27, color="#CD45FF")
         icon.place(x=5, y=170, width=30, height=30)
         return icon
 
     def __ext_icon_tab_question_icon(self, parent):
+        # 创建小贴士icon
         icon = Icon(parent, icon_name="question-circle-fill", size=27, color="#CD45FF")
         icon.place(x=5, y=465, width=30, height=30)
         return icon
