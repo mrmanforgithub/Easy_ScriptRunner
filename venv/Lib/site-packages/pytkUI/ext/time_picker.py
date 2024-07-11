@@ -1,0 +1,33 @@
+from tkinter import LEFT, RIGHT, END
+
+from ttkbootstrap.style import Style, Colors
+from ttkbootstrap.widgets import Frame, Entry, Button
+
+from pytkUI.ext.time_picker_dialog import TimePickerDialog
+from pytkUI.utils import load_font_icon
+
+
+class TimePicker(Frame):
+
+    def __init__(self, master, bootstyle='primary'):
+        super().__init__(master)
+        self.tp = TimePickerDialog(ok_bootstyle=bootstyle)
+        self.ipt = Entry(self, bootstyle=bootstyle)
+        style = Style()
+
+        img_normal = load_font_icon('clock', 24, Colors.get_foreground(style.colors, bootstyle))
+        self.btn = Button(self, padding=(2, 2), bootstyle=bootstyle, width=24, image=img_normal, command=self.click)
+
+        self.btn.pack(side=RIGHT)
+        self.ipt.pack(side=LEFT, expand=True)
+
+    def click(self):
+        self.tp.show()
+        if self.tp.result is None:
+            return
+        self.ipt.delete(first=0, last=END)
+        self.ipt.insert(END, self.tp.result)
+        self.ipt.focus_force()
+
+    def get(self):
+        return self.ipt.get()

@@ -1,0 +1,8 @@
+from pytkUI.ext.time_picker_dialog import TimePickerDialog
+from pytkUI.ext.ext_tabs import ExtTabs, TabItem
+from pytkUI.ext.icon import Icon
+from pytkUI.ext.time_picker import TimePicker
+
+ALL_WIDGET = [
+    Icon, ExtTabs, TabItem, TimePickerDialog, TimePicker
+]

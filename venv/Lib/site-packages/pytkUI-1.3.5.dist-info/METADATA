@@ -1,0 +1,66 @@
+Metadata-Version: 2.1
+Name: pytkUI
+Version: 1.3.5
+Summary: TkinterHelper布局助手官方拓展和工具库
+Home-page: https://www.pytk.net
+Author: iamxcd
+Description-Content-Type: text/markdown
+
+TkinterHelper布局助手官方拓展和工具库
+
+## 安装方式
+
+> pip install pytkUI
+
+## 新增组件
+
+### 图标组件 Icon
+
+可以在tkinter上展示图标,图标数量众多大概1800多个,基于开源的bootstrap图标.
+
+### 日期输入框 DateEntry
+
+基于ttkbootstrap的DateEntry,重写部分代码,更符合国内使用.
+
+### 拓展选项卡组件 ExtTabs
+
+点击右侧选项菜单 切换视图
+
+### 时间输入框 DateEntry
+
+基于基础组件实现的选择时间
+
+## 开源组件
+
+本项目使用的开源项目如下
+
+| 开源名称           |
+|----------------|
+| bootstrap icon |
+| ttkbootstrap   |
+
+## pyinstaller 打包文件
+
+已经增加钩子，打包时自动打包字体相关文件
+
+## nuitka 打包文件
+
+第三方包打包配置文件
+
+> site-packages\nuitka\plugins\standard\standard.nuitka-package.config.yml
+
+
+在本地将以下配置 补充到以上文件中再打包即可
+
+```yaml
+
+- module-name: 'pytkUI'
+  data-files:
+    dirs:
+      - 'icons'
+    patterns:
+      - '*.json'
+      - '*.woff'
+
+```
+

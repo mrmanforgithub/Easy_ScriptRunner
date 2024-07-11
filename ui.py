@@ -49,7 +49,7 @@ class WinGUI(Window):
         self.geometry(geometry)
         self.focus_force()  # 窗口置顶
         self.resizable(width=False, height=False)
-        # self.iconbitmap('menu.ico')
+        self.iconbitmap('menu.ico')
 
     def on_close(self):
         # 清空 setting_json/operation_cache.json 文件内容

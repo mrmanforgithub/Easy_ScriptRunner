@@ -1,0 +1,69 @@
+from datetime import datetime
+from tkinter import LEFT, RIGHT, X
+from tkinter.ttk import Frame, Spinbox, Label, Separator, Button
+
+from ttkbootstrap.dialogs import Dialog
+
+
+class TimePickerDialog(Dialog):
+
+    def __init__(self, title='时间选择器', ok_bootstyle='secondary'):
+        super().__init__(title=title)
+        self.ok_bootstyle = ok_bootstyle
+        self.msv = [str(i).rjust(2, '0') for i in range(60)]
+        self.hv = [str(i).rjust(2, '0') for i in range(24)]
+        self.s = None
+        self.m = None
+        self.h = None
+
+    def create_body(self, master):
+        frame = Frame(master, padding=(5, 5))
+
+        self.h = Spinbox(frame, width=4, values=self.hv, takefocus=False, )
+        self.m = Spinbox(frame, width=4, values=self.msv, takefocus=False, )
+        self.s = Spinbox(frame, width=4, values=self.msv, takefocus=False, )
+
+        lh = Label(frame, text="时")
+        lm = Label(frame, text="分")
+        ls = Label(frame, text="秒")
+
+        time = datetime.now()
+        hour = str(time.hour).zfill(2)
+        minute = str(time.minute).zfill(2)
+        second = str(time.second).zfill(2)
+
+        # 设置默认值
+        self.h.set(hour)
+        self.m.set(minute)
+        self.s.set(second)
+
+        self.h.pack(side=LEFT, padx=1, )
+        lh.pack(side=LEFT, )
+        self.m.pack(side=LEFT, padx=1, )
+        lm.pack(side=LEFT, )
+        self.s.pack(side=LEFT, padx=1, )
+        ls.pack(side=LEFT, )
+        frame.pack(padx=4, pady=4)
+
+    def __get_time(self):
+        h = self.h.get()
+        m = self.m.get()
+        s = self.s.get()
+
+        return f"{h}:{m}:{s}"
+
+    def on_confirm(self):
+        self._result = self.__get_time()
+        self._toplevel.destroy()
+
+    def on_cancel(self):
+        self._toplevel.destroy()
+
+    def create_buttonbox(self, master):
+        Separator(master).pack(fill=X)
+        frame = Frame(master, padding=(5, 5))
+        btn = Button(frame, text="确定", bootstyle=self.ok_bootstyle, command=self.on_confirm, takefocus=False)
+        btn.pack(padx=2, side=RIGHT)
+        btn = Button(frame, text="取消", bootstyle="secondary", command=self.on_cancel, takefocus=False)
+        btn.pack(padx=2, side=RIGHT)
+        frame.pack()
