@@ -16,8 +16,8 @@
 
 ## 安装
 
-直接把这个项目 fork 一下，clone 到本地去，应该就能在 IDE 中运行（推荐 pycharm 或者 VSCODE），毕竟纯 python 代码，没什么环境需求，只需要安装了 python 就可以运行。<br><br>
-因为目前还在往里面加一大堆有用没用的功能，所以暂时不打包，等我懒得搞下去了我试试看用 pyinstaller 打包一下，尽量压缩到一两百 mb，现在 opencv 这种库实在是太大了···
+直接把这个项目 fork 一下，clone 到本地去，应该就能在 IDE 中运行（推荐 pycharm 或者 VSCODE），毕竟纯 python 代码，没什么环境需求，只需要安装了 python 就可以运行，包全都在虚拟环境 venv 中，所以请用 venv\Scripts\activate 启动虚拟环境，不然你要自己导包的。<br><br>
+尝试过用 pyinstaller 打包过了，只有一百多 mb，还算可以接受。
 
 ## 使用
 

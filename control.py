@@ -4,6 +4,8 @@ import time
 from tkinter import filedialog, messagebox
 from tkinter.simpledialog import askstring
 import keyboard
+import traceback
+from datetime import datetime
 
 
 class Controller:
@@ -175,6 +177,14 @@ class Controller:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(default_bindings, f, ensure_ascii=False, indent=2)
         except json.JSONDecodeError:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            # 构造日志文件名
+            log_filename = f"backtrace_logs/{timestamp}"
+            # 将异常信息写入日志文件
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                traceback.print_exc(file=file)  # 将异常信息写入文件
             return
         if "快捷键" in key_bindings:
             bindings = key_bindings["快捷键"]

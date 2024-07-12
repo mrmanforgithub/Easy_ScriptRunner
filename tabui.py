@@ -1,15 +1,19 @@
 import random
+import json
 from tkinter import *
 from tkinter.ttk import *
 from ttkbootstrap import *
 from pytkUI.widgets import *
 from tabcontrol import TabController as tab_controller
 from ToolTip import *
+import traceback
+from datetime import datetime
 
 class TabGUI(Frame):
     ui: object
     def __init__(self, parent, ui):
         self.parent = parent
+        self.key_setting_path = "setting_json/key_setting.json"
         self.ext_tabs_second_tab = self.__ext_tabs_second_tab(parent)
         self.tk_frame_enter_container = self.__tk_frame_enter_container(self.ext_tabs_second_tab_0)
         # 开始循环按钮
@@ -176,6 +180,7 @@ class TabGUI(Frame):
         self.ctl = tab_controller(self)
         # 创建ui对象,这个ui主要用于传递给tab_controller,让tab_controller可以调用侧边栏之类的位置的函数,相反也可以让ui调用这里的
         self.ui = ui
+        self.similar_default_set()
         # 在ctl中创建这个ui
         self.ctl.init_ui(self.ui)
         # 添加鼠标移上去显示小贴士
@@ -648,6 +653,35 @@ class TabGUI(Frame):
         cb.current(0)
         cb.place(x=10, y=143, width=150, height=30)
         return cb
+    
+    def similar_default_set(self):
+        json_file = self.key_setting_path
+
+        try:
+            with open(json_file, "r", encoding="utf-8") as file:
+                settings = json.load(file)
+        except FileNotFoundError:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"  
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                traceback.print_exc(file=file)  # 将异常信息写入文件
+
+        # 获取相似度值
+        if "else" in settings and "相似度" in settings["else"]:
+            similarity_value = settings["else"]["相似度"]
+            similarity_percent = str(int(float(similarity_value) * 100)) + "%"
+            similarity_num = int(float(similarity_value) * 100)
+            self.label_value.set(similarity_percent)
+            self.tk_scale_num_similar.set(similarity_num)
+        else:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"  
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                traceback.print_exc(file=file)  # 将异常信息写入文件
 
     def __event_bind(self):
         #开始扫描
@@ -690,7 +724,7 @@ class TabGUI(Frame):
         self.tk_button_scan_output.bind('<Button-1>', self.ctl.scan_output_enter)
 
         # 重新初始化
-        self.tk_button_scan_reopen_button.bind('<Button-1>', self.ctl.scan_reopen_enter)
+        self.tk_button_scan_reopen_button.bind('<Button-1>', lambda event: self.ctl.scan_reopen_enter(event, self, self.parent, self.ui))
 
         # 设置默认图片
         self.tk_button_set_default_photo.bind('<Button-1>',self.ctl.set_default_photo)

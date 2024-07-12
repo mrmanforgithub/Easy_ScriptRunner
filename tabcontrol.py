@@ -10,7 +10,9 @@ import cv2
 import numpy as np
 import pyautogui
 from PIL import Image, ImageGrab
-
+import traceback
+from datetime import datetime
+import subprocess
 
 class TabController:
     # 导入UI类后,替换以下的 object 类型,将获得 IDE 属性提示功能
@@ -28,8 +30,7 @@ class TabController:
         self.photo_path = "setting_json/photo_cache.json"  # 缓存文件,临时记录图片数据,关闭后清空
         self.default_file_path = "setting_json/default_operation.json"   # 默认文件,记录开启时导入的操作内容
         self.default_photo_path = "setting_json/default_photo.json"    # 默认文件,记录开启时导入的图片内容
-        self.log_path = "setting_json/backlog.txt"   # 错误日志所在位置
-
+        self.key_setting_path = "setting_json/key_setting.json" 
 
         self.operations = self.load_operations(self.default_file_path)
         if not self.operations:
@@ -61,6 +62,7 @@ class TabController:
         self.grab_photo = False
         # 默认的扫描相似度阈值
         self.check_similar = 0.75
+        self.similar_bind()
         # 线程池,最大20个同时进行的线程
         self.scan_pool = concurrent.futures.ThreadPoolExecutor(max_workers=20)
         self.scan_futures = set()
@@ -339,7 +341,13 @@ class TabController:
                     json.dump(settings_data, f, indent=4, ensure_ascii=False)
                 default_photo_window.destroy()
             except Exception as e:
-                return
+                now = datetime.now()
+                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+                log_filename = f"backtrace_logs/{timestamp}"
+    
+                with open(log_filename, "w") as file:
+                    file.write(f"Error occurred at {now}:\n")
+                    traceback.print_exc(file=file)  # 将异常信息写入文件
 
         def load_settings():
             data = self.save_photos(default_photo=None,getdata="1")
@@ -376,7 +384,13 @@ class TabController:
                     json.dump(settings_data, f, indent=4, ensure_ascii=False)
                 default_operation_window.destroy()
             except Exception as e:
-                return
+                now = datetime.now()
+                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+                log_filename = f"backtrace_logs/{timestamp}"
+    
+                with open(log_filename, "w") as file:
+                    file.write(f"Error occurred at {now}:\n")
+                    traceback.print_exc(file=file)  # 将异常信息写入文件
 
         def load_settings():
             data = {}
@@ -415,7 +429,13 @@ class TabController:
                 self.ui.ctl.bind_keys(path = "setting_json/key_setting.json")
                 default_key_window.destroy()
             except Exception as e:
-                return
+                now = datetime.now()
+                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+                log_filename = f"backtrace_logs/{timestamp}"
+    
+                with open(log_filename, "w") as file:
+                    file.write(f"Error occurred at {now}:\n")
+                    traceback.print_exc(file=file)  # 将异常信息写入文件
 
 
     def set_default_similar(self, evt, similar):
@@ -423,12 +443,94 @@ class TabController:
         numeric_value_str = similar.replace('%', '')
         numeric_value = float(numeric_value_str) / 100.0
         self.check_similar = numeric_value
+        json_file = self.key_setting_path
+        try:
+            with open(json_file, "r", encoding="utf-8") as file:
+                settings = json.load(file)
+        except FileNotFoundError:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"  
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                traceback.print_exc(file=file)  # 将异常信息写入文件
+        except json.JSONDecodeError:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"  
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                traceback.print_exc(file=file)  # 将异常信息写入文件
+        # 更新相似度值
+        if "else" in settings:
+            settings["else"]["相似度"] = self.check_similar
+        else:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"  
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                file.write(f"Key disappear:'相似度' is not founded\n")
+        
+        # 将更新后的数据写回 JSON 文件
+        try:
+            with open(json_file, "w", encoding="utf-8") as file:
+                json.dump(settings, file, ensure_ascii=False, indent=4)
+        except IOError as e:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"  
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                traceback.print_exc(file=file)  # 将异常信息写入文件
 
     def check_out_log(self, evt):
+        logs_dir = 'backtrace_logs'  # 日志文件夹名称
+        # 获取当前工作目录
+        current_dir = os.getcwd()
+        # 拼接日志文件夹的完整路径
+        logs_path = os.path.join(current_dir, logs_dir)
+        # 检查日志文件夹是否存在
+        if os.path.exists(logs_path):
+            # 使用系统命令打开文件夹
+            try:
+                if os.name == 'nt':  # Windows系统
+                    subprocess.Popen(['explorer', logs_path])
+            except FileNotFoundError:
+                now = datetime.now()
+                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+                log_filename = f"backtrace_logs/{timestamp}"
+                
+                with open(log_filename, "w") as file:
+                    file.write(f"Error occurred at {now}:\n")
+                    traceback.print_exc(file=file)  # 将异常信息写入文件
+        else:
+            try:
+                os.makedirs(logs_path)
+            except OSError as e:
+                return
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"
+                
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                file.write(f"{logs_path} does not exist\n")
+            subprocess.Popen(['explorer', logs_path])
         return
 
-    def scan_reopen_enter(self, evt):
-        return
+    def scan_reopen_enter(self, evt, Tab, Parent, Ui):
+        class_type = type(self)
+    
+    # 重新调用 __init__ 方法来重新构建对象
+        new_instance = class_type.__new__(class_type)
+        new_instance.__init__(tab=Tab)  # 调用初始化方法
+
+        class_type2 = type(Tab)
+    
+    # 重新调用 __init__ 方法来重新构建对象
+        new_instances = class_type2.__new__(class_type2)
+        new_instances.__init__(parent=Parent,ui=Ui)  # 调用初始化方法
 
     def set_random_offset(self, evt):
         return
@@ -1171,6 +1273,31 @@ class TabController:
             self.tab.tk_select_box_photo4_switch_box.set("与")
 
             self.select_photo_show()
+
+    def similar_bind(self):
+        json_file = self.key_setting_path
+
+        try:
+            with open(json_file, "r", encoding="utf-8") as file:
+                settings = json.load(file)
+        except FileNotFoundError:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"  
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                traceback.print_exc(file=file)  # 将异常信息写入文件
+
+        # 获取相似度值
+        if "else" in settings and "相似度" in settings["else"]:
+            self.check_similar = settings["else"]["相似度"]
+        else:
+            now = datetime.now()
+            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+            log_filename = f"backtrace_logs/{timestamp}"  
+            with open(log_filename, "w") as file:
+                file.write(f"Error occurred at {now}:\n")
+                file.write(f"Key disappear:'相似度' is not founded\n")
 
 
 
