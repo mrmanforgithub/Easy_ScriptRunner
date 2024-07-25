@@ -3,8 +3,15 @@ from pytkUI.widgets import *
 from ttkbootstrap import *
 from tabui import TabGUI
 from ToolTip import *
+import pystray
+from PIL import Image
+import threading
+from tkinter import messagebox
+import json
+
 
 class SingletonMeta(type):
+
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -123,10 +130,78 @@ class Win(WinGUI):
     def __init__(self, controller):
         self.ctl = controller
         super().__init__()
+        self.key_setting_path = "setting_json/key_setting.json"
+        self.tray_thread = None
+        self.is_tray_running = False
+        self.tray_icon =None
+        self.checkfirst()
         self.__event_bind()
         self.config(menu=self.create_menu())
         self.add_tooltips()
         self.ctl.init(self)
+
+    def checkfirst(self):
+        with open(self.key_setting_path, 'r',encoding='utf-8') as file:
+            data = json.load(file)
+            if data["else"]["关闭方式"] == "未设置":
+                self.protocol("WM_DELETE_WINDOW", self.confirm_close)
+            elif data["else"]["关闭方式"] == "最小化":
+                self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
+
+    def confirm_close(self):
+        with open(self.key_setting_path, 'r',encoding='utf-8') as file:
+            data = json.load(file)
+        result = messagebox.askquestion("关闭确认", "您确定要关闭吗？\n选择“是”将直接关闭,选择“否”将最小化到托盘。\n此弹窗只会跳出一次,如需要修改,\n请在默认快捷键中修改")
+        if result == "yes":
+            data["else"]["关闭方式"] = "直接关闭"
+            with open(self.key_setting_path, 'w',encoding='utf-8') as file:
+                json.dump(data, file, ensure_ascii=False, indent=2)
+            self.quit()
+        else:
+            data["else"]["关闭方式"] = "最小化"
+            with open(self.key_setting_path, 'w',encoding='utf-8') as file:
+                json.dump(data, file, ensure_ascii=False, indent=2)
+            self.minimize_to_tray()
+
+    def run_tray_thread(self):
+        self.withdraw()  # 隐藏窗口
+        self.tray_icon = pystray.Icon("ScriptRunner")
+        self.tray_icon.menu = self.create_icon_menu()
+        self.tray_icon.icon = Image.open("menu.ico")  # 替换为实际图标图片的路径
+        self.is_tray_running = True
+        self.tray_icon.run()  # 启动系统托盘循环
+        self.is_tray_running = False
+
+    def minimize_to_tray(self):
+        if self.is_tray_running:
+            return  # 如果系统托盘线程正在运行，则直接返回
+        self.is_tray_running = True
+        self.tray_thread = threading.Thread(target=self.run_tray_thread)
+        self.tray_thread.start()
+
+    def show_window(self):
+        self.deiconify()  # 显示窗口
+        if(self.is_tray_running):
+            self.tray_icon.stop()
+
+    def create_icon_menu(self):
+        menu = pystray.Menu(
+            pystray.MenuItem("恢复窗口", self.show_window),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("开始扫描", self.ctl.tab_play_enter),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("停止扫描", self.ctl.tab_stop_enter),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("直接退出", self.exit_program)
+        )
+        return menu
+
+    def exit_program(self):
+        if self.tray_icon is not None:
+            self.tray_icon.stop()  # 停止系统托盘循环
+            self.tray_icon = None
+        self.tray_thread = None
+        self.quit()
 
     def create_menu(self):
         menu = Menu(self, tearoff=False)

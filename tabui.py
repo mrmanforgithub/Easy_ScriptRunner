@@ -502,7 +502,7 @@ class TabGUI(Frame):
 
     def __tk_select_box_operation_list(self, parent):
         cb = Combobox(parent, state="readonly", bootstyle="default")
-        cb['values'] = ("等待时间", "键盘操作", "鼠标操作", "鼠标拖动", "滚轮操作", "自动寻路", "开启扫描", "关闭扫描")
+        cb['values'] = ("等待时间", "键盘操作", "鼠标操作", "双击操作","鼠标拖动", "滚轮操作", "自动寻路", "开启扫描", "关闭扫描")
         cb.current(0)
         cb.place(x=140, y=220, width=140)
         return cb
@@ -688,8 +688,8 @@ class TabGUI(Frame):
         self.tk_button_start_scanning_button.bind('<Button-1>', self.ctl.start_scanning)
         #循环次数
         self.tk_select_box_circle_time_checkbox.bind('<<ComboboxSelected>>',
-                                                         lambda event: self.ctl.confirm_selection(event,
-                                                                                                  self.tk_select_box_circle_time_checkbox.get()))
+                                                        lambda event: self.ctl.confirm_selection(event,
+                                                                                                self.tk_select_box_circle_time_checkbox.get()))
         # 确认地址
         self.tk_select_box_photo_address.bind('<<ComboboxSelected>>',self.ctl.confirm_address_selection)
         # 4号图片位置

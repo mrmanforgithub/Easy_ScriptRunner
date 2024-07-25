@@ -1,4 +1,3 @@
-# 导入布局文件
 from ui import Win as MainWin
 # 导入窗口控制器
 from control import Controller as MainUIController

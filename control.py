@@ -8,6 +8,7 @@ import traceback
 from datetime import datetime
 
 
+
 class Controller:
     # 导入UI类后,替换以下的 object 类型,将获得 IDE 属性提示功能
     ui: object
@@ -28,8 +29,8 @@ class Controller:
 
     def load_all_scripts(self):
         json_path = filedialog.askopenfilename(title="Select file",
-                                               filetypes=(
-                                                   ("Json files", "*.json"), ("all files", "*.*")))
+                                                filetypes=(
+                                                    ("Json files", "*.json"), ("all files", "*.*")))
         with open(json_path, 'r') as file:
             data = json.load(file)
 
@@ -149,7 +150,7 @@ class Controller:
         for tab in self.tabs:
             tab.ctl.stop_scanning()
         self.ui.focus_force()  # 窗口置顶
-        self.ui.state('normal')  # 恢复正常状态
+        self.ui.show_window() #关闭一下系统托盘
         self.ui.lift()  # 将主窗口放置在其他窗口之上
 
     def tab_question_enter(self, evt):

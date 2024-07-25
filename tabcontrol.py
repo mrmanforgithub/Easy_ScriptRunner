@@ -156,14 +156,14 @@ class TabController:
         # 浏览图片所在位置的文本框填入
         if self.image_path is not None:
             target_image_path_str = filedialog.askopenfilename(initialdir=os.path.dirname(self.image_path),
-                                                               initialfile=os.path.basename(self.image_path),
-                                                               title="Select file",
-                                                               filetypes=(
-                                                                   ("jpeg files", "*.jpg"), ("all files", "*.*")))
+                                                                initialfile=os.path.basename(self.image_path),
+                                                                title="Select file",
+                                                                filetypes=(
+                                                                    ("jpeg files", "*.jpg"), ("all files", "*.*")))
         else:
             target_image_path_str = filedialog.askopenfilename(title="Select file",
-                                                               filetypes=(
-                                                                   ("jpeg files", "*.jpg"), ("all files", "*.*")))
+                                                                filetypes=(
+                                                                    ("jpeg files", "*.jpg"), ("all files", "*.*")))
         if text_box_number == 1:
             self.tab.tk_input_photo1_text.delete(0, tk.END)
             self.tab.tk_input_photo1_text.insert(0, target_image_path_str)
@@ -190,9 +190,9 @@ class TabController:
     def load_photo_context(self, evt):
         # 单独读取图片文件内容
         file_path = filedialog.askopenfilename(initialdir=os.path.dirname(self.file_path),
-                                               initialfile=os.path.basename(self.file_path),
-                                               title="读取操作列表",
-                                               filetypes=(("Json files", "*.json"), ("All files", "*.*")))
+                                                initialfile=os.path.basename(self.file_path),
+                                                title="读取操作列表",
+                                                filetypes=(("Json files", "*.json"), ("All files", "*.*")))
         if file_path:
             self.populate_photo_address(file_path)
         ("从文件中读取具体图片位置")
@@ -232,6 +232,8 @@ class TabController:
             self.add_keyboard_operation_window(self.operation_position)
         elif self.operation_content == "鼠标操作":
             self.add_mouse_operation_window(self.operation_position)
+        elif self.operation_content == "双击操作":
+            self.add_mouse_operation_window(self.operation_position,clickcount = 2)
         elif self.operation_content == "鼠标拖动":
             self.add_drag_operation_window(self.operation_position)
         elif self.operation_content == "滚轮操作":
@@ -254,9 +256,9 @@ class TabController:
     def load_operation_context(self, evt):
         # 单独读取操作文件内容
         file_path = filedialog.askopenfilename(initialdir=os.path.dirname(self.file_path),
-                                               initialfile=os.path.basename(self.file_path),
-                                               title="读取操作列表",
-                                               filetypes=(("Json files", "*.json"), ("All files", "*.*")))
+                                                initialfile=os.path.basename(self.file_path),
+                                                title="读取操作列表",
+                                                filetypes=(("Json files", "*.json"), ("All files", "*.*")))
         if file_path:
             with open(file_path, 'rb') as file:
                 self.operations = self.load_operations(file_path)
@@ -267,14 +269,14 @@ class TabController:
         # 图片文件读取
         if self.image_path is not None:
             target_image_path_str = filedialog.askopenfilename(initialdir=os.path.dirname(self.image_path),
-                                                               initialfile=os.path.basename(self.image_path),
-                                                               title="图片文件",
-                                                               filetypes=(
-                                                                   ("Json files", "*.json"), ("all files", "*.*")))
+                                                                initialfile=os.path.basename(self.image_path),
+                                                                title="图片文件",
+                                                                filetypes=(
+                                                                    ("Json files", "*.json"), ("all files", "*.*")))
         else:
             target_image_path_str = filedialog.askopenfilename(title="Select file",
-                                                               filetypes=(
-                                                                   ("Json files", "*.json"), ("all files", "*.*")))
+                                                                filetypes=(
+                                                                    ("Json files", "*.json"), ("all files", "*.*")))
         self.tab.tk_input_scan_photo_text.delete(0, tk.END)
         self.tab.tk_input_scan_photo_text.insert(0, target_image_path_str)
 
@@ -282,14 +284,14 @@ class TabController:
         # 操作文件读取
         if self.image_path is not None:
             target_image_path_str = filedialog.askopenfilename(initialdir=os.path.dirname(self.image_path),
-                                                               initialfile=os.path.basename(self.image_path),
-                                                               title="操作文件",
-                                                               filetypes=(
-                                                                   ("Json files", "*.json"), ("all files", "*.*")))
+                                                                initialfile=os.path.basename(self.image_path),
+                                                                title="操作文件",
+                                                                filetypes=(
+                                                                    ("Json files", "*.json"), ("all files", "*.*")))
         else:
             target_image_path_str = filedialog.askopenfilename(title="Select file",
-                                                               filetypes=(
-                                                                   ("Json files", "*.json"), ("all files", "*.*")))
+                                                                filetypes=(
+                                                                    ("Json files", "*.json"), ("all files", "*.*")))
         self.tab.tk_input_scan_operation_text.delete(0, tk.END)
         self.tab.tk_input_scan_operation_text.insert(0, target_image_path_str)
 
@@ -703,7 +705,7 @@ class TabController:
                 max_loops -= 1
             if max_loops is None or max_loops > 0:
                 self.ui.after(100,
-                              lambda: self.scan_loop(target_image, photo_if, photo_address, chosen_index, max_loops))
+                                lambda: self.scan_loop(target_image, photo_if, photo_address, chosen_index, max_loops))
             else:
                 ("结束扫描")
                 self.stop_scanning()
@@ -753,13 +755,13 @@ class TabController:
             canvas.delete("all")
             if self.start_x is not None:
                 canvas.create_line(self.start_x, self.start_y, self.start_x, event.y, fill='black',
-                                   width=5)  # Draw line from (start_x,start_y) to (start_x,end_y)
+                                    width=5)  # Draw line from (start_x,start_y) to (start_x,end_y)
                 canvas.create_line(self.start_x, self.start_y, event.x, self.start_y, fill='black',
-                                   width=5)  # Draw line from (start_x,start_y) to (end_x,start_y)
+                                    width=5)  # Draw line from (start_x,start_y) to (end_x,start_y)
                 canvas.create_line(self.start_x, event.y, event.x, event.y, fill='black',
-                                   width=5)  # Draw line from (start_x,end_y) to (end_x,end_y)
+                                    width=5)  # Draw line from (start_x,end_y) to (end_x,end_y)
                 canvas.create_line(event.x, self.start_y, event.x, event.y, fill='black',
-                                   width=5)  # Draw line from (end_x,start_y) to (end_x,end_y)
+                                    width=5)  # Draw line from (end_x,start_y) to (end_x,end_y)
 
         canvas.bind("<Button-1>", on_press_select)  # Record start position
         canvas.bind("<B1-Motion>", draw_drag_line)  # Draw drag line
@@ -811,7 +813,7 @@ class TabController:
 
     def add_mouse_operation(self, click_position, position):
         # 将鼠标操作加入operations,随后打印出来
-        self.operations.insert(position, f"鼠标操作：点击位置 - {click_position}")
+        self.operations.insert(position, f"鼠标操作:{click_position}")
         self.save_operations()
         self.populate_operation_list()
 
@@ -944,7 +946,7 @@ class TabController:
         y_entry.pack(pady=5)
 
         pathfinding_button = tk.Button(pathfinding_window, text="确认",
-                                       command=lambda: handle_confirm_click(x_entry, y_entry))
+                                        command=lambda: handle_confirm_click(x_entry, y_entry))
         pathfinding_button.pack(pady=5)
 
     def add_wait_operation_window(self, position):
@@ -960,7 +962,7 @@ class TabController:
         wait_entry.pack(pady=5)
         wait_button = tk.Button(wait_window, text="确认",
                                 command=lambda: [self.add_wait_operation(int(wait_entry.get()), position=position),
-                                                 wait_window.destroy()])
+                                                wait_window.destroy()])
         wait_button.pack(pady=5)
 
     def add_scroll_operation_window(self, position):
@@ -976,9 +978,9 @@ class TabController:
         scroll_entry = tk.Entry(scroll_window)
         scroll_entry.pack(pady=5)
         scroll_button = tk.Button(scroll_window, text="确认",
-                                  command=lambda: [
-                                      self.add_scroll_operation(int(scroll_entry.get()), position=position),
-                                      scroll_window.destroy()])
+                                    command=lambda: [
+                                    self.add_scroll_operation(int(scroll_entry.get()), position=position),
+                                    scroll_window.destroy()])
         scroll_button.pack(pady=5)
 
         def on_mouse_wheel(event):
@@ -1042,9 +1044,10 @@ class TabController:
 
         keyboard_window.bind("<Key>", record_key_press)
 
-    def add_mouse_operation_window(self, position):
+    def add_mouse_operation_window(self, position, clickcount = 1):
         # 打开鼠标窗口并且记录下一个鼠标点击的位置
         self.ui.iconify()
+        click_count = clickcount
         mouse_window = tk.Toplevel(self.ui)
         mouse_window.attributes('-alpha', 0.3)  # Set transparency
         mouse_window.attributes('-fullscreen', True)  # Set fullscreen
@@ -1054,13 +1057,22 @@ class TabController:
         mouse_window.wm_attributes('-topmost', 1)
 
         def record_click_position(event):
-            click_position = f"({event.x}, {event.y})"
+            if event.num == 1:  # 左键单击
+                if (click_count ==1):
+                    click_position = f"左键单击-({event.x}, {event.y})"
+                elif(click_count ==2):
+                    click_position = f"左键双击-({event.x}, {event.y})"
+            elif event.num == 2:  # 中键单击
+                click_position = f"中键单击-({event.x}, {event.y})"
+            elif event.num == 3:  # 右键单击
+                click_position = f"右键单击-({event.x}, {event.y})"
             self.add_mouse_operation(click_position, position=position)
-            self.ui.deiconify()
             time.sleep(0.2)
+            self.ui.deiconify()
             mouse_window.destroy()
-
-        mouse_window.bind("<Button-1>", record_click_position)
+        mouse_window.bind("<Button-1>", record_click_position)  # 左键点击
+        mouse_window.bind("<Button-2>", record_click_position)  # 中键单击
+        mouse_window.bind("<Button-3>", record_click_position)  # 右键单击
 
     def execute_operations(self):
         # 执行操作函数
@@ -1084,11 +1096,23 @@ class TabController:
                 key_position = operation.split(" - ")[1]
                 pyautogui.press(key_position)  # Simulate keyboard press
             elif operation.startswith("鼠标操作"):
-                click_position = operation.split(" - ")[1]
+                click_position = operation.split("-")[1]
+                click_type = operation.split("-")[0].split(":")[1]
                 x, y = map(int, click_position.strip("()").split(","))
-                offset_x = random.randint(-1, 1)
-                offset_y = random.randint(-1, 1)
-                pyautogui.click(x + offset_x, y + offset_y)
+                offset_x = 0
+                offset_y = 0
+                # offset_x = random.randint(-1, 1)
+                # offset_y = random.randint(-1, 1)
+                
+                if click_type == "左键单击":
+                    pyautogui.click(x + offset_x, y + offset_y)
+                elif click_type == "右键单击":
+                    pyautogui.rightClick(x + offset_x, y + offset_y)
+                elif click_type == "中键单击":
+                    pyautogui.middleClick(x + offset_x, y + offset_y)
+                elif click_type == "左键双击":
+                    pyautogui.doubleClick(x + offset_x, y + offset_y, interval=0.1)
+                    
             elif operation.startswith("开启"):
                 chosen_index = int(operation.split("号扫描")[0].strip("开启："))
                 loop_count_string = operation.split("号扫描")[1].split("次")[0].strip()
@@ -1126,7 +1150,7 @@ class TabController:
                 else:
                     data = json.loads(data)
                     operation_names = [data.get(str(key), {}).get("operation_name", "") for key in data if
-                                       key.isdigit()]
+                                        key.isdigit()]
                     return operation_names
         except FileNotFoundError:
             return []
@@ -1151,7 +1175,7 @@ class TabController:
                 else:
                     data = json.loads(data)
                     operation_names = [data.get(str(key), {}).get("operation_name", "") for key in data if
-                                       key.isdigit()]
+                                        key.isdigit()]
                     self.operations = operation_names
         except FileNotFoundError:
             self.operations = []
@@ -1283,7 +1307,7 @@ class TabController:
         except FileNotFoundError:
             now = datetime.now()
             timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"  
+            log_filename = f"backtrace_logs/{timestamp}"
             with open(log_filename, "w") as file:
                 file.write(f"Error occurred at {now}:\n")
                 traceback.print_exc(file=file)  # 将异常信息写入文件
@@ -1294,7 +1318,7 @@ class TabController:
         else:
             now = datetime.now()
             timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"  
+            log_filename = f"backtrace_logs/{timestamp}"
             with open(log_filename, "w") as file:
                 file.write(f"Error occurred at {now}:\n")
                 file.write(f"Key disappear:'相似度' is not founded\n")
