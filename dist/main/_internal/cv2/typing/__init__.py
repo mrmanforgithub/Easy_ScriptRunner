@@ -33,21 +33,12 @@ __all__ = [
     "FeatureDetector",
     "DescriptorExtractor",
     "FeatureExtractor",
-    "GProtoArg",
-    "GProtoInputArgs",
-    "GProtoOutputArgs",
-    "GRunArg",
-    "GOptRunArg",
-    "GMetaArg",
-    "Prim",
     "Matx33f",
     "Matx33d",
     "Matx44f",
     "Matx44d",
-    "GTypeInfo",
-    "ExtractArgsCallback",
-    "ExtractMetaCallback",
     "LayerId",
+    "LayerParams",
     "IndexParams",
     "SearchParams",
     "map_string_and_string",
@@ -55,14 +46,24 @@ __all__ = [
     "map_string_and_vector_size_t",
     "map_string_and_vector_float",
     "map_int_and_double",
+    "GProtoArg",
+    "GProtoInputArgs",
+    "GProtoOutputArgs",
+    "GRunArg",
+    "GOptRunArg",
+    "GMetaArg",
+    "Prim",
+    "GTypeInfo",
+    "ExtractArgsCallback",
+    "ExtractMetaCallback",
 ]
 
-import cv2.dnn
-import typing as _typing
-import cv2.mat_wrapper
 import numpy
-import cv2.gapi.wip.draw
 import cv2
+import cv2.gapi.wip.draw
+import cv2.dnn
+import cv2.mat_wrapper
+import typing as _typing
 
 
 if _typing.TYPE_CHECKING:
@@ -150,13 +151,6 @@ Vec6f = _typing.Sequence[float]
 FeatureDetector = cv2.Feature2D
 DescriptorExtractor = cv2.Feature2D
 FeatureExtractor = cv2.Feature2D
-GProtoArg = _typing.Union[Scalar, cv2.GMat, cv2.GOpaqueT, cv2.GArrayT]
-GProtoInputArgs = _typing.Sequence[GProtoArg]
-GProtoOutputArgs = _typing.Sequence[GProtoArg]
-GRunArg = _typing.Union[MatLike, Scalar, cv2.GOpaqueT, cv2.GArrayT, _typing.Sequence[_typing.Any], None]
-GOptRunArg = _typing.Optional[GRunArg]
-GMetaArg = _typing.Union[cv2.GMat, Scalar, cv2.GOpaqueT, cv2.GArrayT]
-Prim = _typing.Union[cv2.gapi.wip.draw.Text, cv2.gapi.wip.draw.Circle, cv2.gapi.wip.draw.Image, cv2.gapi.wip.draw.Line, cv2.gapi.wip.draw.Rect, cv2.gapi.wip.draw.Mosaic, cv2.gapi.wip.draw.Poly]
 Matx33f = NumPyArrayFloat32
 """NDArray(shape=(3, 3), dtype=numpy.float32)"""
 Matx33d = NumPyArrayFloat64
@@ -165,10 +159,8 @@ Matx44f = NumPyArrayFloat32
 """NDArray(shape=(4, 4), dtype=numpy.float32)"""
 Matx44d = NumPyArrayFloat64
 """NDArray(shape=(4, 4), dtype=numpy.float64)"""
-GTypeInfo = _typing.Union[cv2.GMat, Scalar, cv2.GOpaqueT, cv2.GArrayT]
-ExtractArgsCallback = _typing.Callable[[_typing.Sequence[GTypeInfo]], _typing.Sequence[GRunArg]]
-ExtractMetaCallback = _typing.Callable[[_typing.Sequence[GTypeInfo]], _typing.Sequence[GMetaArg]]
 LayerId = cv2.dnn.DictValue
+LayerParams = _typing.Dict[str, _typing.Union[int, float, str]]
 IndexParams = _typing.Dict[str, _typing.Union[bool, int, float, str]]
 SearchParams = _typing.Dict[str, _typing.Union[bool, int, float, str]]
 map_string_and_string = _typing.Dict[str, str]
@@ -176,3 +168,13 @@ map_string_and_int = _typing.Dict[str, int]
 map_string_and_vector_size_t = _typing.Dict[str, _typing.Sequence[int]]
 map_string_and_vector_float = _typing.Dict[str, _typing.Sequence[float]]
 map_int_and_double = _typing.Dict[int, float]
+GProtoArg = _typing.Union[Scalar, cv2.GMat, cv2.GOpaqueT, cv2.GArrayT]
+GProtoInputArgs = _typing.Sequence[GProtoArg]
+GProtoOutputArgs = _typing.Sequence[GProtoArg]
+GRunArg = _typing.Union[MatLike, Scalar, cv2.GOpaqueT, cv2.GArrayT, _typing.Sequence[_typing.Any], None]
+GOptRunArg = _typing.Optional[GRunArg]
+GMetaArg = _typing.Union[cv2.GMat, Scalar, cv2.GOpaqueT, cv2.GArrayT]
+Prim = _typing.Union[cv2.gapi.wip.draw.Text, cv2.gapi.wip.draw.Circle, cv2.gapi.wip.draw.Image, cv2.gapi.wip.draw.Line, cv2.gapi.wip.draw.Rect, cv2.gapi.wip.draw.Mosaic, cv2.gapi.wip.draw.Poly]
+GTypeInfo = _typing.Union[cv2.GMat, Scalar, cv2.GOpaqueT, cv2.GArrayT]
+ExtractArgsCallback = _typing.Callable[[_typing.Sequence[GTypeInfo]], _typing.Sequence[GRunArg]]
+ExtractMetaCallback = _typing.Callable[[_typing.Sequence[GTypeInfo]], _typing.Sequence[GMetaArg]]

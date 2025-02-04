@@ -1,14 +1,14 @@
 {
-  "0": {
-    "operation_index": 0,
-    "operation_name": "键盘操作：按键位置 - p"
-  },
-  "1": {
-    "operation_index": 1,
-    "operation_name": "等待：400ms"
-  },
-  "2": {
-    "operation_index": 2,
-    "operation_name": "键盘操作：按键位置 - enter"
-  }
+    "0": {
+        "operation_index": 0,
+        "operation_name": "键盘操作:[p]"
+    },
+    "1": {
+        "operation_index": 1,
+        "operation_name": "等待:400ms"
+    },
+    "2": {
+        "operation_index": 2,
+        "operation_name": "键盘操作:[Return]"
+    }
 }

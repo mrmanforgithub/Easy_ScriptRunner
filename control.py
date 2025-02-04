@@ -161,8 +161,10 @@ class Controller:
                                     "\n4.开启所有扫描"
                                     "\n5.关闭所有扫描"
                                     "\n鼠标移动上去0.5s"
-                                    "\n会告诉你按钮的作用")
-        
+                                    "\n会告诉你按钮的作用"
+                                    "\n填入图片位置的输入框"
+                                    "\n也可以填入文字进行文字识别哦")
+
     def bind_keys(self, path):
         default_bindings = {
         "快捷键": {

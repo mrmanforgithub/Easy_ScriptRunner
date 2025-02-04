@@ -14,6 +14,12 @@ class TabGUI(Frame):
     def __init__(self, parent, ui):
         self.parent = parent
         self.key_setting_path = "setting_json/key_setting.json"
+
+        self.frame_height = 61  # 每个框的高度
+        self.padding = 10  # 框与框之间的间隔
+        self.frame_count = 0
+
+
         self.ext_tabs_second_tab = self.__ext_tabs_second_tab(parent)
         self.tk_frame_enter_container = self.__tk_frame_enter_container(self.ext_tabs_second_tab_0)
         # 开始循环按钮
@@ -26,6 +32,7 @@ class TabGUI(Frame):
 
         # 图片相关选项卡
         self.tk_frame_photo_all_container = self.__tk_frame_photo_all_container(self.ext_tabs_second_tab_0)
+
         # 图片4的容器
         self.tk_frame_photo4_container = self.__tk_frame_photo4_container(self.tk_frame_photo_all_container)
         # 图片4的标签
@@ -246,7 +253,7 @@ class TabGUI(Frame):
         return btn
 
     def __tk_label_scanning_state_label(self, parent):
-        label = Label(parent, text="扫描状态", anchor="center", bootstyle="info inverse")
+        label = Label(parent, text="扫描状态", anchor="center", bootstyle="info inverse",background="#6c757d")
         label.place(x=8, y=2, width=176, height=40)
         return label
 
@@ -256,6 +263,8 @@ class TabGUI(Frame):
         cb.current(0)
         cb.place(x=199, y=6, width=176)
         return cb
+
+
     def __tk_frame_second_tab_0(self, parent):
         frame = Frame(parent)
         return frame
@@ -287,13 +296,22 @@ class TabGUI(Frame):
         frame.place(x=0, y=0, width=577, height=398)
         return frame
 
+        """
+        生成一个新的图片框，并更新位置。
+        每次调用会生成一个新的框，并自动命名为 "图片X"
+        """
+        frame_count = len(self.frame_list)  # 获取当前已经生成的图片框数量
+        self.generate_photo_frame(parent, frame_count)
+
+
+
     def __tk_frame_photo4_container(self, parent):
         frame = Frame(parent, bootstyle="default")
         frame.place(x=10, y=210, width=560, height=61)
         return frame
 
     def __tk_label_photo4_label(self, parent):
-        label = Label(parent, text="图片4：", anchor="center", bootstyle="secondary")
+        label = Label(parent, text="图文4：", anchor="center", bootstyle="secondary")
         label.place(x=15, y=15, width=50, height=30)
         return label
 
@@ -321,13 +339,15 @@ class TabGUI(Frame):
         cb.place(x=478, y=15, width=76, height=30)
         return cb
 
+
+
     def __tk_frame_photo3_container(self, parent):
         frame = Frame(parent, bootstyle="default")
         frame.place(x=10, y=144, width=560, height=61)
         return frame
 
     def __tk_label_photo3_label(self, parent):
-        label = Label(parent, text="图片3：", anchor="center", bootstyle="secondary")
+        label = Label(parent, text="图文3：", anchor="center", bootstyle="secondary")
         label.place(x=15, y=15, width=50, height=30)
         return label
 
@@ -355,13 +375,15 @@ class TabGUI(Frame):
         cb.place(x=478, y=15, width=76, height=30)
         return cb
 
+
+
     def __tk_frame_photo2_container(self, parent):
         frame = Frame(parent, bootstyle="default")
         frame.place(x=10, y=76, width=560, height=61)
         return frame
 
     def __tk_label_photo2_label(self, parent):
-        label = Label(parent, text="图片2：", anchor="center", bootstyle="secondary")
+        label = Label(parent, text="图文2：", anchor="center", bootstyle="secondary")
         label.place(x=15, y=15, width=50, height=30)
         return label
 
@@ -389,13 +411,15 @@ class TabGUI(Frame):
         cb.place(x=478, y=15, width=76, height=30)
         return cb
 
+
+
     def __tk_frame_photo1_container(self, parent):
         frame = Frame(parent, bootstyle="default")
         frame.place(x=9, y=9, width=560, height=61)
         return frame
 
     def __tk_label_photo1_label(self, parent):
-        label = Label(parent, text="图片1：", anchor="center", bootstyle="secondary")
+        label = Label(parent, text="图文1：", anchor="center", bootstyle="secondary")
         label.place(x=15, y=15, width=50, height=30)
         return label
 
@@ -502,7 +526,7 @@ class TabGUI(Frame):
 
     def __tk_select_box_operation_list(self, parent):
         cb = Combobox(parent, state="readonly", bootstyle="default")
-        cb['values'] = ("等待时间", "键盘操作", "鼠标操作", "双击操作","鼠标拖动", "滚轮操作", "自动寻路", "开启扫描", "关闭扫描")
+        cb['values'] = ("等待时间", "键盘操作", "鼠标操作","鼠标拖动", "滚轮操作", "自动寻路", "开启扫描", "关闭扫描")
         cb.current(0)
         cb.place(x=140, y=220, width=140)
         return cb
@@ -653,7 +677,7 @@ class TabGUI(Frame):
         cb.current(0)
         cb.place(x=10, y=143, width=150, height=30)
         return cb
-    
+
     def similar_default_set(self):
         json_file = self.key_setting_path
 
@@ -663,7 +687,7 @@ class TabGUI(Frame):
         except FileNotFoundError:
             now = datetime.now()
             timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"  
+            log_filename = f"backtrace_logs/{timestamp}"
             with open(log_filename, "w") as file:
                 file.write(f"Error occurred at {now}:\n")
                 traceback.print_exc(file=file)  # 将异常信息写入文件
@@ -678,7 +702,7 @@ class TabGUI(Frame):
         else:
             now = datetime.now()
             timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"  
+            log_filename = f"backtrace_logs/{timestamp}"
             with open(log_filename, "w") as file:
                 file.write(f"Error occurred at {now}:\n")
                 traceback.print_exc(file=file)  # 将异常信息写入文件
@@ -700,6 +724,7 @@ class TabGUI(Frame):
         self.tk_button_photo2_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 2))
         # 1号图片位置
         self.tk_button_photo1_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 1))
+
         # 单独图片保存
         self.tk_button_save_photo_button.bind('<Button-1>', self.ctl.save_photo_context)
         # 单独图片读取
@@ -744,9 +769,9 @@ class TabGUI(Frame):
         self.tk_select_box_check_out_box.bind('<<ComboboxSelected>>',self.ctl.set_default_check)
 
         # 手动框选
-        self.tk_button_select_button.bind('<Button-1>', self.ctl.start_grab_window)
+        self.tk_button_select_button.bind('<Button-1>',self.ctl.open_manual_selection_window)
         # 手动截图
-        self.tk_button_select_photo_button.bind('<Button-1>', self.ctl.start_grab_photo_window)
+        self.tk_button_select_photo_button.bind('<Button-1>',lambda event:  self.ctl.open_manual_selection_window(event,grab_photo=True))
 
         # 保存选择图片的地址
         self.tk_button_select_photo_save.bind('<Button-1>', self.ctl.select_photo_save)
@@ -756,7 +781,7 @@ class TabGUI(Frame):
         # 更改字体大小
         sty = Style()
         sty.configure(self.new_style(self.tk_button_start_scanning_button), font=("微软雅黑", -20, "bold"))
-        sty.configure(self.new_style(self.tk_label_scanning_state_label), font=("微软雅黑", -20, "bold underline"))
+        sty.configure(self.new_style(self.tk_label_scanning_state_label), font=("微软雅黑", -20, "bold"))
         sty.configure(self.new_style(self.tk_label_photo4_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_button_photo4_browser_button), font=("微软雅黑 Light", -13, "bold"))
         sty.configure(self.new_style(self.tk_label_photo3_label), font=("微软雅黑", -12))
@@ -804,7 +829,7 @@ class TabGUI(Frame):
         create_tooltip(self.tk_label_scanning_state_label, "扫描的当前状态")
         create_tooltip(self.tk_select_box_circle_time_checkbox, "选择扫描的次数")
 
-        create_tooltip(self.tk_button_photo1_browser_button, "浏览对应图片的文件")
+        create_tooltip(self.tk_button_photo1_browser_button, "浏览对应图片的文件(也可以直接填入文字,进行文字识别)")
         create_tooltip(self.tk_select_box_photo1_switch_box, "选择对应图片的扫描逻辑")
         create_tooltip(self.tk_select_box_photo1_scan_box, "选择对应图片的扫描地址")
 
@@ -813,7 +838,7 @@ class TabGUI(Frame):
         create_tooltip(self.tk_button_select_button, "手动框选一个扫描地址")
         create_tooltip(self.tk_button_select_photo_button, "截图并且将框选地址填入")
         create_tooltip(self.tk_select_box_photo_address, "当前地址信息")
-        create_tooltip(self.tk_button_select_photo_save, "记录下当前地址信息：如果不记录则切换后此次地址记录消失")
+        create_tooltip(self.tk_button_select_photo_save, "记录下当前地址信息")
 
         create_tooltip(self.tk_button_operation_change_button, "修改对应行的操作内容")
         create_tooltip(self.tk_button_operation_delete_button, "删除对应行的操作内容")

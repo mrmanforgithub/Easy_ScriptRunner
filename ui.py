@@ -151,7 +151,7 @@ class Win(WinGUI):
     def confirm_close(self):
         with open(self.key_setting_path, 'r',encoding='utf-8') as file:
             data = json.load(file)
-        result = messagebox.askquestion("关闭确认", "您确定要关闭吗？\n选择“是”将直接关闭,选择“否”将最小化到托盘。\n此弹窗只会跳出一次,如需要修改,\n请在默认快捷键中修改")
+        result = messagebox.askquestion("关闭确认", "您确定要关闭吗？\n选择“是”将直接关闭,选择“否”将最小化到托盘。\n此弹窗只会跳出一次,如需要修改,\n请在默认快捷键中修改,选择'最小化'或者'直接关闭'")
         if result == "yes":
             data["else"]["关闭方式"] = "直接关闭"
             with open(self.key_setting_path, 'w',encoding='utf-8') as file:
@@ -167,7 +167,7 @@ class Win(WinGUI):
         self.withdraw()  # 隐藏窗口
         self.tray_icon = pystray.Icon("ScriptRunner")
         self.tray_icon.menu = self.create_icon_menu()
-        self.tray_icon.icon = Image.open("menu.ico")  # 替换为实际图标图片的路径
+        self.tray_icon.icon = Image.open("images/icons/menu.ico")  # 替换为实际图标图片的路径
         self.is_tray_running = True
         self.tray_icon.run()  # 启动系统托盘循环
         self.is_tray_running = False

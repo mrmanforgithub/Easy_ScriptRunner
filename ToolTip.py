@@ -8,7 +8,7 @@ class ToolTip:
         self.tip_window = None
         self.id = None
         self.x = self.y = 0
-        
+
     def show_tip(self):
         if self.tip_window or not self.text:
             return
@@ -20,20 +20,20 @@ class ToolTip:
         tw.wm_geometry("+%d+%d" % (x, y))
         tip_width = self.widget.winfo_width()
         label = tk.Label(tw, text=self.text, justify=tk.LEFT,
-                         background="black", foreground="white",
-                         relief=tk.SOLID, borderwidth=1,
-                         font=("宋体", "9"), wraplength=tip_width)
+                        background="black", foreground="white",
+                        relief=tk.SOLID, borderwidth=1,
+                        font=("宋体", "9"), wraplength=tip_width)
         label.pack(ipadx=1)
-        
+
     def hide_tip(self):
         tw = self.tip_window
         self.tip_window = None
         if tw:
             tw.destroy()
-            
+
     def schedule_show_tip(self, event):
         self.id = self.widget.after(self.delay, self.show_tip)
-        
+
     def schedule_hide_tip(self, event):
         if self.id:
             self.widget.after_cancel(self.id)
