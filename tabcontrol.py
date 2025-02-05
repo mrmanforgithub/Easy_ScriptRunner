@@ -28,7 +28,23 @@ class TabController:
         self.operation_content = None
         self.keep_scanning = False   # 扫描的信标,保证正在扫描
         self.sub_windows = []   # 子窗口集合,用于调用其他tab
-        self.ocr = None  # 设置中文语言模型和文本方向检测
+        self.ocr = None  # 设置ocr模型
+
+        self.start_time = None  # 开始时间
+        self.time_count = 0  #当前扫描时间
+        self.time_limit = None  #自动结束时间
+
+        self.scan_count= 0  #当前扫描次数
+        self.scan_limit= None  #扫描次数上限
+
+        self.execution_count = 0  #当前执行次数
+        self.execution_limit = None  #执行次数上限
+
+        self.scan_interval = 100  #扫描间隔
+        self.execution_method = "script_done"  #执行判断方式
+        self.previous_scan_result = None
+
+        self.photo_if = "all"  #图片策略
 
         self.file_path = "setting_json/operation_cache.json"  # 缓存文件,临时记录操作数据,关闭后清空
         self.photo_path = "setting_json/photo_cache.json"  # 缓存文件,临时记录图片数据,关闭后清空
@@ -81,6 +97,7 @@ class TabController:
         # 显示默认图片信息
         self.populate_photo_address(self.photo_path)
 
+
     def load_ocr(self):
         self.tab.tk_label_scanning_state_label.config(text="加载OCR模型中...")
         from PPOCR_api import GetOcrApi
@@ -113,12 +130,14 @@ class TabController:
 
     # 开始扫描,读取个个图片框的位置,匹配对应的地址,对应的与或非,然后传参图片匹配算法
     def start_scanning(self, evt, max_loops=None):
-        self.result_check = ["是", "是", "是", "是"]
-        photo1_if = self.tab.tk_select_box_photo1_switch_box.get()
-        photo2_if = self.tab.tk_select_box_photo2_switch_box.get()
-        photo3_if = self.tab.tk_select_box_photo3_switch_box.get()
-        photo4_if = self.tab.tk_select_box_photo4_switch_box.get()
-
+        self.start_time = time.time()
+        self.time_count = 0
+        self.scan_count = 0
+        self.photo_if = self.tab.photo_if_var.get()
+        if self.photo_if == "all":
+            self.result_check = ["是", "是", "是", "是"]
+        elif self.photo_if == "one":
+            self.result_check = ["否", "否", "否", "否"]
         photo1_address = self.tab.tk_select_box_photo1_scan_box.get()
         photo2_address = self.tab.tk_select_box_photo2_scan_box.get()
         photo3_address = self.tab.tk_select_box_photo3_scan_box.get()
@@ -147,24 +166,43 @@ class TabController:
         if photo1_image_path.strip():
             self.result_check[0] = "否"
             target_image1 = self.load_target_image(photo1_image_path,0)
-            future = self.scan_pool.submit(self.scan_loop, target_image1, photo1_if, photo1_address, 0, max_loops)
+            future = self.scan_pool.submit(self.scan_loop, target_image1, photo1_address, 0, max_loops)
             self.scan_futures.add(future)
         if photo2_image_path.strip():
             self.result_check[1] = "否"
             target_image2 = self.load_target_image(photo2_image_path,1)
-            future = self.scan_pool.submit(self.scan_loop, target_image2, photo2_if, photo2_address, 1, max_loops)
+            future = self.scan_pool.submit(self.scan_loop, target_image2, photo2_address, 1, max_loops)
             self.scan_futures.add(future)
         if photo3_image_path.strip():
             self.result_check[2] = "否"
             target_image3 = self.load_target_image(photo3_image_path,2)
-            future = self.scan_pool.submit(self.scan_loop, target_image3, photo3_if, photo3_address, 2, max_loops)
+            future = self.scan_pool.submit(self.scan_loop, target_image3, photo3_address, 2, max_loops)
             self.scan_futures.add(future)
         if photo4_image_path.strip():
             self.result_check[3] = "否"
             target_image4 = self.load_target_image(photo4_image_path,3)
-            future = self.scan_pool.submit(self.scan_loop, target_image4, photo4_if, photo4_address, 3, max_loops)
+            future = self.scan_pool.submit(self.scan_loop, target_image4, photo4_address, 3, max_loops)
             self.scan_futures.add(future)
         self.save_photos()
+
+        #停止扫描
+
+    def stop_scanning(self):
+        # 停止扫描
+        self.scanning = False
+        self.blink = False
+        self.result_found = False
+        self.tab.tk_label_scanning_state_label.config(background="#6c757d")
+        self.time_count = 0
+        self.scan_count = 0
+        self.execution_count = 0
+        for future in list(self.scan_futures):
+            if not future.done():
+                future.cancel()
+                self.scan_futures.remove(future)
+        self.tab.tk_label_scanning_state_label.after(100, lambda: self.tab.tk_label_scanning_state_label.config(
+            text="未开始扫描"))
+        self.tab.tk_button_start_scanning_button.config(text="开始扫描")
 
     # 确认本次扫描的循环次数
     def confirm_selection(self, evt, selection):
@@ -571,6 +609,112 @@ class TabController:
     def set_default_check(self, evt):
         return
 
+    #设置扫描时间
+    def set_scan_time(self, evt):
+        # 创建设置窗口
+        scan_time_window = tk.Toplevel(self.ui)
+        scan_time_window.title("设置扫描间隔")
+        scan_time_window.geometry("300x250")
+
+        # 输入框和单选按钮
+        input_frame = tk.Frame(scan_time_window)
+        input_frame.pack(pady=10)
+
+        # 输入框：扫描间隔（秒）
+        input_label = tk.Label(input_frame, text="请输入扫描间隔(毫秒ms):")
+        input_label.pack(pady=5)
+
+        input_entry = tk.Entry(input_frame)
+        input_entry.insert(0, self.scan_interval)  # 默认填充100ms
+        input_entry.pack(pady=5)
+
+        # 单选按钮：选择执行判断方式
+        method_var = tk.StringVar(value=self.execution_method)
+
+        method_label = tk.Label(input_frame, text="执行成功判断方式：")
+        method_label.pack(pady=5)
+
+        rb_script_done = tk.Radiobutton(input_frame, text="脚本执行完毕", variable=method_var, value="script_done")
+        rb_script_done.pack()
+
+        rb_scan_changed = tk.Radiobutton(input_frame, text="扫描结果发生变化", variable=method_var, value="scan_changed")
+        rb_scan_changed.pack()
+
+        # 确认按钮
+        def confirm_scan_time():
+            # 获取扫描间隔和选择的判断方式
+            try:
+                scan_interval = input_entry.get()  # 转换为毫秒
+                self.scan_interval = int(scan_interval)
+            except ValueError:
+                tk.messagebox.showwarning("警告", "请输入有效的数字！")
+                return
+
+            self.execution_method = method_var.get()
+
+            # 关闭设置窗口
+            scan_time_window.destroy()
+
+        confirm_button = tk.Button(scan_time_window, text="确认", command=confirm_scan_time)
+        confirm_button.pack(pady=10)
+
+    # 设置定时停止扫描
+    def set_operaton_timeout(self, evt):
+        self.time_limit = None
+        self.scan_limit = None
+        self.execution_limit = None
+        # 创建设置面板
+        timeout_window = tk.Toplevel(self.ui)
+        timeout_window.title("设置操作超时")
+        timeout_window.geometry("300x300")
+
+        # 输入框和单选按钮
+        input_frame = tk.Frame(timeout_window)
+        input_frame.pack(pady=10)
+
+        # 选项的单选按钮
+        timeout_option = tk.StringVar(value="定时停止")
+
+        timeout_choices = [("定时停止（秒）", "定时停止"), ("扫描成功次数（次）", "扫描次数"), ("脚本执行成功次数（次）", "脚本次数")]
+
+        for text, value in timeout_choices:
+            rb = tk.Radiobutton(input_frame, text=text, variable=timeout_option, value=value)
+            rb.pack()
+
+        # 输入框
+        input_label = tk.Label(input_frame, text="请输入时间或次数：")
+        input_label.pack(pady=5)
+
+        input_entry = tk.Entry(input_frame)
+        input_entry.pack(pady=5)
+
+        # 确认按钮
+        def confirm_timeout_input():
+            # 获取选择的操作类型和输入的值
+            selected_option = timeout_option.get()
+            input_value = input_entry.get()
+
+            if not input_value.isdigit():
+                tk.messagebox.showwarning("警告", "请输入有效的数字！")
+                return
+
+            # 生成输出文本
+            if selected_option == "定时停止":
+                result_text = f"定时 {input_value} 秒 结束扫描"
+                self.time_limit = float(input_value)
+            elif selected_option == "扫描次数":
+                result_text = f"扫描成功 {int(input_value)} 次后停止"
+                self.scan_limit = int(input_value)
+            elif selected_option == "脚本次数":
+                result_text = f"脚本执行成功 {int(input_value)} 次后停止"
+                self.execution_limit = int(input_value)
+            self.tab.tk_label_operation_timeout_limit.config(text=result_text)
+            timeout_window.destroy()  # 关闭窗口
+
+        # 确认按钮
+        confirm_button = tk.Button(timeout_window, text="确认", command=confirm_timeout_input)
+        confirm_button.pack(pady=10)
+
     # 选择的图片地址显示出来
     def select_photo_show(self):
         address_select = self.tab.tk_select_box_photo_address.get()
@@ -654,12 +798,15 @@ class TabController:
     def compare_images_with_template_matching(self, image1, image2, address_content):
         # 比较图片的算法
         # 将图像转换为灰度图
-        gray_image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-        gray_image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+        try:
+            gray_image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+            gray_image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+        except cv2.error as e:
+            print(e)
+            return False
 
         # 使用模板匹配
         result = cv2.matchTemplate(gray_image1, gray_image2, cv2.TM_CCOEFF_NORMED)
-
         # 获取最大和最小匹配值及其位置
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
@@ -677,21 +824,6 @@ class TabController:
         else:
             return False  # 图片不相似
 
-    #停止扫描
-    def stop_scanning(self):
-        # 停止扫描
-        self.scanning = False
-        self.blink = False
-        self.result_found = False
-        self.tab.tk_label_scanning_state_label.config(background="#6c757d")
-        for future in list(self.scan_futures):
-            if not future.done():
-                future.cancel()
-                self.scan_futures.remove(future)
-        self.tab.tk_label_scanning_state_label.after(100, lambda: self.tab.tk_label_scanning_state_label.config(
-            text="未开始扫描"))
-        self.tab.tk_button_start_scanning_button.config(text="开始扫描")
-
     # 文字移动
     def blink_text(self, label, text, delay=800):
         if self.scanning and not self.result_found:  # 确保闪烁只在扫描时进行
@@ -704,7 +836,7 @@ class TabController:
             self.blink = True
 
     #扫描循环(此处是进行扫描的核心代码)
-    def scan_loop(self, target_image, photo_if, photo_address, chosen_index, max_loops):
+    def scan_loop(self, target_image, photo_address, chosen_index, max_loops):
         # 检查地址内容
         address_content = self.address_change(address_select=photo_address)
         screenshot=None
@@ -727,13 +859,13 @@ class TabController:
                     self.result_found = True
                     self.tab.tk_label_scanning_state_label.config(text="扫描成功", background="#007bff")
                     self.scroll_offset = 0
+                    self.blink = False
                     self.result_check[chosen_index] = "是"
                 else:
                     self.result_found = False
                     self.result_check[chosen_index] = "否"
                     if not self.blink:
                         self.blink_text(self.tab.tk_label_scanning_state_label, "未扫描到结果")
-
             else:
                 self.start_ocr_loading()  # 如果OCR模型还未加载,启动加载
                 ocr_result = None
@@ -748,6 +880,8 @@ class TabController:
                     expected_text = target_image  # 你的目标文字(根据实际需求修改)
                     if expected_text.strip() in recognized_text.strip():  # 判断识别文字是否包含目标文字
                         self.result_found = True
+                        self.scroll_offset = 0
+                        self.blink = False
                         self.tab.tk_label_scanning_state_label.config(text="文字识别成功", background="#007bff")
                         self.result_check[chosen_index] = "是"
                     else:
@@ -761,11 +895,44 @@ class TabController:
                     if not self.blink:
                         self.blink_text(self.tab.tk_label_scanning_state_label, "未识别到文字")
 
-            # 执行操作如果所有结果都满足条件
-            if self.result_check == ["是", "是", "是", "是"]:
-                self.execute_operations()
+            if self.photo_if == "all":
+                current_scan_result = self.previous_scan_result
+                # 如果是 "all"，要求 result_check 所有项都是 "是"
+                if self.result_check == ["是", "是", "是", "是"]:
+                    self.previous_scan_result=True
+                    self.execute_operations()
+                    if self.previous_scan_result != current_scan_result and self.execution_method == "scan_changed":
+                        self.execution_count += 1
+                else:
+                    self.previous_scan_result=False
+            elif self.photo_if == "one":
+                # 如果是 "one"，只要有一个是 "是" 就满足
+                if "是" in self.result_check:
+                    self.previous_scan_result=True
+                    self.execute_operations()
+                    if self.previous_scan_result != current_scan_result and self.execution_method == "scan_changed":
+                        self.execution_count += 1
+                else:
+                    self.previous_scan_result=False
             # 关闭截图资源
             screenshot.close()
+
+            # 更新扫描时间和扫描次数
+            self.time_count = (time.time() - self.start_time).__round__(2)
+            if self.time_limit:
+                self.tab.tk_label_operation_timeout_limit.config(text=f"定时{self.time_limit}秒结束"+
+                                                                f"\n还剩下{int(self.time_limit-self.time_count)} 秒")
+                if self.time_count >= self.time_limit:
+                    self.tab.tk_label_operation_timeout_limit.config(text="定时结束,已停止扫描")
+                    self.stop_scanning()  # 达到定时停止时间，停止扫描
+
+            self.scan_count += 1
+            if self.scan_limit:
+                self.tab.tk_label_operation_timeout_limit.config(text=f"预计扫描{self.scan_limit}次"+
+                                                                f"\n还剩下{self.scan_limit-self.scan_count} 次")
+                if self.scan_count >= self.scan_limit:
+                    self.tab.tk_label_operation_timeout_limit.config(text="次数到达,已停止扫描")
+                    self.stop_scanning()  # 达到扫描次数限制，停止扫描
 
             # 调整循环次数
             if max_loops is not None:
@@ -773,7 +940,7 @@ class TabController:
 
             # 继续循环扫描
             if max_loops is None or max_loops > 0:
-                self.ui.after(100, lambda: self.scan_loop(target_image, photo_if, photo_address, chosen_index, max_loops))
+                self.ui.after(self.scan_interval, lambda: self.scan_loop(target_image, photo_address, chosen_index, max_loops))
             else:
                 self.stop_scanning()
 
@@ -1592,6 +1759,19 @@ class TabController:
                     for i in range(0, num_points, 2):  # 每隔一个点选择一次
                         if i + 1 < num_points:
                             pyautogui.moveTo(positions[i + 1][0], positions[i + 1][1], duration=time_per_move)
+
+
+        if self.execution_method == "script_done":
+            self.execution_count += 1 # 记录执行成功次数
+
+        self.tab.tk_label_operation_times.config(text=f"运行完成{self.execution_count}次")
+
+        if self.execution_limit:
+            self.tab.tk_label_operation_timeout_limit.config(text=f"预计执行{self.execution_limit}次"+
+                                                            f"\n还剩下{self.execution_limit-self.execution_count} 次")
+            if self.execution_count >= self.execution_limit:
+                self.tab.tk_label_operation_timeout_limit.config(text="次数到达,已停止扫描")
+                self.stop_scanning()  # 达到扫描次数限制，停止扫描
         pass
 
     # 读取给定文件路径下的内容并且加入自己的self.operations中
@@ -1669,10 +1849,8 @@ class TabController:
                 "图片2的地址": self.tab.tk_select_box_photo2_scan_box.get(),
                 "图片3的地址": self.tab.tk_select_box_photo3_scan_box.get(),
                 "图片4的地址": self.tab.tk_select_box_photo4_scan_box.get(),
-                "图片1的与或非": self.tab.tk_select_box_photo1_switch_box.get(),
-                "图片2的与或非": self.tab.tk_select_box_photo2_switch_box.get(),
-                "图片3的与或非": self.tab.tk_select_box_photo3_switch_box.get(),
-                "图片4的与或非": self.tab.tk_select_box_photo4_switch_box.get()}
+                "满足方式": self.tab.photo_if_var.get()
+                }
         if default_photo is None:
             write_path = self.photo_path
         else:
@@ -1719,11 +1897,7 @@ class TabController:
             self.tab.tk_select_box_photo2_scan_box.set(data.get("图片2的地址", "地址1"))
             self.tab.tk_select_box_photo3_scan_box.set(data.get("图片3的地址", "地址1"))
             self.tab.tk_select_box_photo4_scan_box.set(data.get("图片4的地址", "地址1"))
-
-            self.tab.tk_select_box_photo1_switch_box.set(data.get("图片1的与或非", "与"))
-            self.tab.tk_select_box_photo2_switch_box.set(data.get("图片2的与或非", "与"))
-            self.tab.tk_select_box_photo3_switch_box.set(data.get("图片3的与或非", "与"))
-            self.tab.tk_select_box_photo4_switch_box.set(data.get("图片4的与或非", "与"))
+            self.tab.photo_if_var.set(data.get("满足方式", "all"))
 
             self.select_photo_show()
 
@@ -1746,11 +1920,7 @@ class TabController:
             self.tab.tk_select_box_photo2_scan_box.set("地址1")
             self.tab.tk_select_box_photo3_scan_box.set("地址1")
             self.tab.tk_select_box_photo4_scan_box.set("地址1")
-
-            self.tab.tk_select_box_photo1_switch_box.set("与")
-            self.tab.tk_select_box_photo2_switch_box.set("与")
-            self.tab.tk_select_box_photo3_switch_box.set("与")
-            self.tab.tk_select_box_photo4_switch_box.set("与")
+            self.tab.photo_if_var.set("all")
 
             self.select_photo_show()
 

@@ -56,14 +56,6 @@ class GOpaque():
         def __new__(self):
             return cv.GOpaqueT(cv.gapi.CV_INT)
 
-    class Int64():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_INT64)
-
-    class UInt64():
-        def __new__(self):
-            return cv.GOpaqueT(cv.gapi.CV_UINT64)
-
     class Double():
         def __new__(self):
             return cv.GOpaqueT(cv.gapi.CV_DOUBLE)
@@ -118,14 +110,6 @@ class GArray():
     class Int():
         def __new__(self):
             return cv.GArrayT(cv.gapi.CV_INT)
-
-    class Int64():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_INT64)
-
-    class UInt64():
-        def __new__(self):
-            return cv.GArrayT(cv.gapi.CV_UINT64)
 
     class Double():
         def __new__(self):
@@ -186,8 +170,6 @@ def op(op_id, in_types, out_types):
     garray_types= {
             cv.GArray.Bool:    cv.gapi.CV_BOOL,
             cv.GArray.Int:     cv.gapi.CV_INT,
-            cv.GArray.Int64:   cv.gapi.CV_INT64,
-            cv.GArray.UInt64:  cv.gapi.CV_UINT64,
             cv.GArray.Double:  cv.gapi.CV_DOUBLE,
             cv.GArray.Float:   cv.gapi.CV_FLOAT,
             cv.GArray.String:  cv.gapi.CV_STRING,
@@ -208,8 +190,6 @@ def op(op_id, in_types, out_types):
             cv.GOpaque.Rect:    cv.gapi.CV_RECT,
             cv.GOpaque.Bool:    cv.gapi.CV_BOOL,
             cv.GOpaque.Int:     cv.gapi.CV_INT,
-            cv.GOpaque.Int64:   cv.gapi.CV_INT64,
-            cv.GOpaque.UInt64:  cv.gapi.CV_UINT64,
             cv.GOpaque.Double:  cv.gapi.CV_DOUBLE,
             cv.GOpaque.Float:   cv.gapi.CV_FLOAT,
             cv.GOpaque.String:  cv.gapi.CV_STRING,
@@ -225,8 +205,6 @@ def op(op_id, in_types, out_types):
     type2str = {
         cv.gapi.CV_BOOL:      'cv.gapi.CV_BOOL' ,
         cv.gapi.CV_INT:       'cv.gapi.CV_INT' ,
-        cv.gapi.CV_INT64:     'cv.gapi.CV_INT64' ,
-        cv.gapi.CV_UINT64:    'cv.gapi.CV_UINT64' ,
         cv.gapi.CV_DOUBLE:    'cv.gapi.CV_DOUBLE' ,
         cv.gapi.CV_FLOAT:     'cv.gapi.CV_FLOAT' ,
         cv.gapi.CV_STRING:    'cv.gapi.CV_STRING' ,
