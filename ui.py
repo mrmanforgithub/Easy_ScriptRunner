@@ -9,19 +9,7 @@ import threading
 from tkinter import messagebox
 import json
 
-
-class SingletonMeta(type):
-
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
 class WinGUI(Window):
-    _instance = None
 
     def __init__(self):
         super().__init__(themename="cosmo", hdpi=False)
@@ -54,8 +42,7 @@ class WinGUI(Window):
         screenheight = self.winfo_screenheight()
         geometry = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
         self.geometry(geometry)
-        self.focus_force()  # 窗口置顶
-        self.resizable(width=False, height=False)
+        self.resizable(width=True, height=True)
         self.iconbitmap('images/icons/menu.ico')
 
     def on_close(self):

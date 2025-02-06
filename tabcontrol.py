@@ -12,8 +12,6 @@ from PIL import Image, ImageGrab
 import traceback
 from datetime import datetime
 import subprocess
-import win32gui
-import win32con
 import re
 import io
 import pygetwindow as gw
@@ -48,6 +46,10 @@ class TabController:
         self.photo_if = "all"  #图片策略
 
         self.process_name = None  #选择窗口进程名
+
+        self.random_offset = 0  #随机偏移量
+
+        self.default_check = "弱相似"
 
         self.file_path = "setting_json/operation_cache.json"  # 缓存文件,临时记录操作数据,关闭后清空
         self.photo_path = "setting_json/photo_cache.json"  # 缓存文件,临时记录图片数据,关闭后清空
@@ -101,35 +103,12 @@ class TabController:
         self.populate_photo_address(self.photo_path)
 
 
-    def load_ocr(self):
-        self.tab.tk_label_scanning_state_label.config(text="加载OCR模型中...")
-        from PPOCR_api import GetOcrApi
-        self.ocr = GetOcrApi("tool/PaddleOCR-json_v1.4.1/PaddleOCR-json.exe")
-        self.tab.tk_label_scanning_state_label.config(text="OCR模型加载完成")
-
-    def start_ocr_loading(self):
-        """加载 OCR 模型"""
-        if not hasattr(self, 'ocr') or not self.ocr:
-            self.load_ocr()
-
     def init_ui(self, ui):
         """
         得到UI实例,对组件进行初始化配置
         """
         self.ui = ui
         # TODO 组件初始化 赋值操作
-
-    def windowsfocus(self):
-        self.window = win32gui.FindWindow(None, 'qq')
-        if self.window == 0:
-            raise Exception('无法找到指定的窗口')
-        print(self.window)
-        if win32gui.IsIconic(self.window):
-            print("最小化了")
-            win32gui.ShowWindow(self.window, win32con.SW_RESTORE)
-        if not win32gui.IsWindowVisible(self.window):
-            raise Exception('窗口不可见')
-        win32gui.SetForegroundWindow(self.window)
 
     # 开始扫描,读取个个图片框的位置,匹配对应的地址,对应的与或非,然后传参图片匹配算法
     def start_scanning(self, evt, max_loops=None):
@@ -189,7 +168,7 @@ class TabController:
         self.save_photos()
 
         #停止扫描
-
+    #停止扫描
     def stop_scanning(self):
         # 停止扫描
         self.scanning = False
@@ -216,56 +195,6 @@ class TabController:
         elif selection == "循环10次":
             self.max_loops = 10
         (self.max_loops)
-
-    # 确认地址选择后显示出来
-    def confirm_address_selection(self, evt):
-        self.select_photo_show()
-        self.save_photos()
-
-    # 浏览图片所在位置的文本框填入
-    def browse_target_image(self, evt, text_box_number):
-        if self.image_path is not None:
-            target_image_path_str = filedialog.askopenfilename(initialdir=os.path.dirname(self.image_path),
-                                                                initialfile=os.path.basename(self.image_path),
-                                                                title="Select file",
-                                                                filetypes=(
-                                                                    ("jpeg files", "*.jpg"), ("all files", "*.*")))
-        else:
-            target_image_path_str = filedialog.askopenfilename(title="Select file",
-                                                                filetypes=(
-                                                                    ("jpeg files", "*.jpg"), ("all files", "*.*")))
-        if text_box_number == 1:
-            self.tab.tk_input_photo1_text.delete(0, tk.END)
-            self.tab.tk_input_photo1_text.insert(0, target_image_path_str)
-        elif text_box_number == 2:
-            self.tab.tk_input_photo2_text.delete(0, tk.END)
-            self.tab.tk_input_photo2_text.insert(0, target_image_path_str)
-        elif text_box_number == 3:
-            self.tab.tk_input_photo3_text.delete(0, tk.END)
-            self.tab.tk_input_photo3_text.insert(0, target_image_path_str)
-        elif text_box_number == 4:
-            self.tab.tk_input_photo4_text.delete(0, tk.END)
-            self.tab.tk_input_photo4_text.insert(0, target_image_path_str)
-        self.save_photos()
-
-    # 单独保存图片文件内容
-    def save_photo_context(self, evt):
-        self.save_photos()
-        file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
-        if file_path:
-            # 复制文件到所选位置
-            shutil.copyfile("setting_json/photo_cache.json", file_path)
-        ("保存图片位置到文件")
-
-    # 单独读取图片文件内容
-    def load_photo_context(self, evt):
-        file_path = filedialog.askopenfilename(initialdir=os.path.dirname(self.file_path),
-                                                initialfile=os.path.basename(self.file_path),
-                                                title="读取操作列表",
-                                                filetypes=(("Json files", "*.json"), ("All files", "*.*")))
-        if file_path:
-            self.populate_photo_address(file_path)
-        ("从文件中读取具体图片位置")
 
     # 修改操作
     def operation_change(self, evt):
@@ -312,27 +241,6 @@ class TabController:
             self.add_start_operation_window(self.operation_position)
         elif self.operation_content == "关闭扫描":
             self.add_close_operation_window(self.operation_position)
-
-    # 单独保存操作文件内容
-    def save_operation_context(self, evt):
-        self.save_operations()
-        file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
-        if file_path:
-            # 复制文件到所选位置
-            shutil.copyfile("setting_json/operation_cache.json", file_path)
-
-    # 单独读取操作文件内容
-    def load_operation_context(self, evt):
-
-        file_path = filedialog.askopenfilename(initialdir=os.path.dirname(self.file_path),
-                                                initialfile=os.path.basename(self.file_path),
-                                                title="读取操作列表",
-                                                filetypes=(("Json files", "*.json"), ("All files", "*.*")))
-        if file_path:
-            with open(file_path, 'rb') as file:
-                self.operations = self.load_operations(file_path)
-                self.save_operations()
-                self.populate_operation_list()
 
     # 图片文件读取
     def scan_browser1_enter(self, evt):
@@ -382,177 +290,36 @@ class TabController:
         with open(file_path, 'w') as merged_file:
             json.dump(merged_data, merged_file, ensure_ascii=False, indent=4)
 
-    # 打开默认图片设置窗口并且记录默认图片信息
-    def set_default_photo(self, evt):
-        default_photo_window = tk.Toplevel(self.ui)
-        default_photo_window.title("设置默认图片")
-        default_photo_window.geometry("355x500")
-        default_photo_window.lift()
-        default_photo_window.focus_set()
 
-        with open('setting_json/default_photo.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        text_widget = tk.Text(default_photo_window, wrap=tk.WORD, width=35, height=20)
-        text_widget.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
-        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
-
-        save_button = tk.Button(default_photo_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
-        save_button.grid(row=1, column=0, pady=10)
-
-        set_default_button = tk.Button(default_photo_window, text="导入本扫描图片信息", command=lambda:load_settings())
-        set_default_button.grid(row=1, column=1, pady=10)
-
-        def save_settings(settings_data_str):
-            try:
-            # Convert the JSON string back to a dictionary
-                settings_data = json.loads(settings_data_str)
-            # 保存在默认图片的文件中
-                with open('setting_json/default_photo.json', 'w', encoding='utf-8') as f:
-                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
-                default_photo_window.destroy()
-            except Exception as e:
-                now = datetime.now()
-                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-                log_filename = f"backtrace_logs/{timestamp}"
-
-                with open(log_filename, "w") as file:
-                    file.write(f"Error occurred at {now}:\n")
-                    traceback.print_exc(file=file)  # 将异常信息写入文件
-
-        def load_settings():
-            data = self.save_photos(default_photo=None,getdata="1")
-            text_widget.delete("1.0", tk.END)
-            text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
-
-    # 打开默认操作设置窗口并且记录默认操作信息
-    def set_default_operation(self, evt):
-
-        default_operation_window = tk.Toplevel(self.ui)
-        default_operation_window.title("设置默认操作")
-        default_operation_window.geometry("440x400")
-        default_operation_window.lift()
-        default_operation_window.focus_set()
-
-        with open('setting_json/default_operation.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        text_widget = tk.Text(default_operation_window, wrap=tk.WORD, width=44, height=15)
-        text_widget.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
-        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
-
-        save_button = tk.Button(default_operation_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
-        save_button.grid(row=1, column=0, pady=10)
-
-        set_default_button = tk.Button(default_operation_window, text="导入本扫描操作信息", command=lambda:load_settings())
-        set_default_button.grid(row=1, column=1, pady=10)
-
-        def save_settings(settings_data_str):
-            try:
-                settings_data = json.loads(settings_data_str)
-                with open('setting_json/default_operation.json', 'w', encoding='utf-8') as f:
-                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
-                default_operation_window.destroy()
-            except Exception as e:
-                now = datetime.now()
-                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-                log_filename = f"backtrace_logs/{timestamp}"
-
-                with open(log_filename, "w") as file:
-                    file.write(f"Error occurred at {now}:\n")
-                    traceback.print_exc(file=file)  # 将异常信息写入文件
-
-        def load_settings():
-            data = {}
-            i = 0
-            for operation in self.operations:
-                operation_index = i
-                operation_name = operation
-                data[i] = {"operation_index": operation_index, "operation_name": operation_name}
-                i = i + 1
-            text_widget.delete("1.0", tk.END)
-            text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
-
-    # 设置默认快捷键
-    def set_default_key(self, evt):
-        default_key_window = tk.Toplevel(self.ui)
-        default_key_window.title("设置默认图片")
-        default_key_window.geometry("355x500")
-        default_key_window.lift()
-        default_key_window.focus_set()
-
-        with open('setting_json/key_setting.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        text_widget = tk.Text(default_key_window, wrap=tk.WORD, width=35, height=20)
-        text_widget.grid(row=0, column=0, padx=10, pady=10)
-        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
-
-        save_button = tk.Button(default_key_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
-        save_button.grid(row=1, column=0, pady=10)
-
-        def save_settings(settings_data_str):
-            try:
-                settings_data = json.loads(settings_data_str)
-                with open('setting_json/key_setting.json', 'w', encoding='utf-8') as f:
-                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
-                self.ui.ctl.bind_keys(path = "setting_json/key_setting.json")
-                default_key_window.destroy()
-            except Exception as e:
-                now = datetime.now()
-                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-                log_filename = f"backtrace_logs/{timestamp}"
-
-                with open(log_filename, "w") as file:
-                    file.write(f"Error occurred at {now}:\n")
-                    traceback.print_exc(file=file)  # 将异常信息写入文件
-
-    # 设置默认相似度
-    def set_default_similar(self, evt, similar):
-        # 设置相似度
-        numeric_value_str = similar.replace('%', '')
-        numeric_value = float(numeric_value_str) / 100.0
-        self.check_similar = numeric_value
+#工具/造轮子代码
+    def save_else(self,key,value):
         json_file = self.key_setting_path
         try:
             with open(json_file, "r", encoding="utf-8") as file:
                 settings = json.load(file)
-        except FileNotFoundError:
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                traceback.print_exc(file=file)  # 将异常信息写入文件
-        except json.JSONDecodeError:
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                traceback.print_exc(file=file)  # 将异常信息写入文件
+        except FileNotFoundError as e:
+            self.error_print(f"未找到文件: {e}")
+        except json.JSONDecodeError as e:
+            self.error_print(f"JSON解码错误: {e}")
         # 更新相似度值
         if "else" in settings:
-            settings["else"]["相似度"] = self.check_similar
+            settings["else"][key] = value
         else:
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                file.write(f"Key disappear:'相似度' is not founded\n")
-
+            self.error_print(f"未找到有关{key}设置")
         # 将更新后的数据写回 JSON 文件
         try:
             with open(json_file, "w", encoding="utf-8") as file:
                 json.dump(settings, file, ensure_ascii=False, indent=4)
         except IOError as e:
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                traceback.print_exc(file=file)  # 将异常信息写入文件
+            self.error_print(f"写入文件时发生错误: {e}")
+
+    def error_print(self,error):
+        now = datetime.now()
+        timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+        log_filename = f"backtrace_logs/{timestamp}"
+        with open(log_filename, "w") as file:
+            file.write(f"Error occurred at {now}:\n")
+            file.write(f"{error}\n")
 
     # 日志文件夹打开
     def check_out_log(self, evt):
@@ -590,7 +357,7 @@ class TabController:
             subprocess.Popen(['explorer', logs_path])
         return
 
-    # 设置xxx
+    # 初始化界面
     def scan_reopen_enter(self, evt, Tab, Parent, Ui):
         class_type = type(self)
 
@@ -604,166 +371,48 @@ class TabController:
         new_instances = class_type2.__new__(class_type2)
         new_instances.__init__(parent=Parent,ui=Ui)  # 调用初始化方法
 
-    # 设置随机偏移
-    def set_random_offset(self, evt):
-        return
+    #读取ocr模型
+    def load_ocr(self):
+        self.tab.tk_label_scanning_state_label.config(text="加载OCR模型中...")
+        from PPOCR_api import GetOcrApi
+        self.ocr = GetOcrApi("tool/PaddleOCR-json_v1.4.1/PaddleOCR-json.exe")
+        self.tab.tk_label_scanning_state_label.config(text="OCR模型加载完成")
 
-    # 设置默认扫描方式
-    def set_default_check(self, evt):
-        return
+    def start_ocr_loading(self):
+        """加载 OCR 模型"""
+        if not hasattr(self, 'ocr') or not self.ocr:
+            self.load_ocr()
 
-    #设置扫描时间
-    def set_scan_time(self, evt):
-        # 创建设置窗口
-        scan_time_window = tk.Toplevel(self.ui)
-        scan_time_window.title("设置扫描间隔")
-        scan_time_window.geometry("300x250")
+    # 确认地址选择后显示出来
+    def confirm_address_selection(self, evt):
+        self.select_photo_show()
+        self.save_photos()
 
-        # 输入框和单选按钮
-        input_frame = tk.Frame(scan_time_window)
-        input_frame.pack(pady=10)
-
-        # 输入框：扫描间隔（秒）
-        input_label = tk.Label(input_frame, text="请输入扫描间隔(毫秒ms):")
-        input_label.pack(pady=5)
-
-        input_entry = tk.Entry(input_frame)
-        input_entry.insert(0, self.scan_interval)  # 默认填充100ms
-        input_entry.pack(pady=5)
-
-        # 单选按钮：选择执行判断方式
-        method_var = tk.StringVar(value=self.execution_method)
-
-        method_label = tk.Label(input_frame, text="执行成功判断方式：")
-        method_label.pack(pady=5)
-
-        rb_script_done = tk.Radiobutton(input_frame, text="脚本执行完毕", variable=method_var, value="script_done")
-        rb_script_done.pack()
-
-        rb_scan_changed = tk.Radiobutton(input_frame, text="扫描结果发生变化", variable=method_var, value="scan_changed")
-        rb_scan_changed.pack()
-
-        # 确认按钮
-        def confirm_scan_time():
-            # 获取扫描间隔和选择的判断方式
-            try:
-                scan_interval = input_entry.get()  # 转换为毫秒
-                self.scan_interval = int(scan_interval)
-            except ValueError:
-                tk.messagebox.showwarning("警告", "请输入有效的数字！")
-                return
-
-            self.execution_method = method_var.get()
-
-            # 关闭设置窗口
-            scan_time_window.destroy()
-
-        confirm_button = tk.Button(scan_time_window, text="确认", command=confirm_scan_time)
-        confirm_button.pack(pady=10)
-
-    # 设置定时停止扫描
-    def set_operaton_timeout(self, evt):
-        self.time_limit = None
-        self.scan_limit = None
-        self.execution_limit = None
-        # 创建设置面板
-        timeout_window = tk.Toplevel(self.ui)
-        timeout_window.title("设置操作超时")
-        timeout_window.geometry("300x300")
-
-        # 输入框和单选按钮
-        input_frame = tk.Frame(timeout_window)
-        input_frame.pack(pady=10)
-
-        # 选项的单选按钮
-        timeout_option = tk.StringVar(value="定时停止")
-
-        timeout_choices = [("定时停止（秒）", "定时停止"), ("扫描成功次数（次）", "扫描次数"), ("脚本执行成功次数（次）", "脚本次数")]
-
-        for text, value in timeout_choices:
-            rb = tk.Radiobutton(input_frame, text=text, variable=timeout_option, value=value)
-            rb.pack()
-
-        # 输入框
-        input_label = tk.Label(input_frame, text="请输入时间或次数：")
-        input_label.pack(pady=5)
-
-        input_entry = tk.Entry(input_frame)
-        input_entry.pack(pady=5)
-
-        # 确认按钮
-        def confirm_timeout_input():
-            # 获取选择的操作类型和输入的值
-            selected_option = timeout_option.get()
-            input_value = input_entry.get()
-
-            if not input_value.isdigit():
-                tk.messagebox.showwarning("警告", "请输入有效的数字！")
-                return
-
-            # 生成输出文本
-            if selected_option == "定时停止":
-                result_text = f"定时 {input_value} 秒 结束扫描"
-                self.time_limit = float(input_value)
-            elif selected_option == "扫描次数":
-                result_text = f"扫描成功 {int(input_value)} 次后停止"
-                self.scan_limit = int(input_value)
-            elif selected_option == "脚本次数":
-                result_text = f"脚本执行成功 {int(input_value)} 次后停止"
-                self.execution_limit = int(input_value)
-            self.tab.tk_label_operation_timeout_limit.config(text=result_text)
-            timeout_window.destroy()  # 关闭窗口
-
-        # 确认按钮
-        confirm_button = tk.Button(timeout_window, text="确认", command=confirm_timeout_input)
-        confirm_button.pack(pady=10)
-
-    #打开窗口选择窗口
-    def open_window_selection(self, evt):
-        # 创建设置面板
-        process_window = tk.Toplevel(self.ui)
-        process_window.title("选择操作窗口")
-        process_window.geometry("300x200")
-        process_window.lift()
-        process_window.focus_set()
-
-        # 获取当前打开的窗口标题
-        window_titles = [win.title for win in gw.getWindowsWithTitle('')
-                        if win.title.strip()]  # 获取当前所有窗口的标题
-
-        # 如果没有窗口，则给出提示
-        if not window_titles:
-            window_titles = ["没有可用窗口"]
-
-        start_label = tk.Label(process_window, text="请选择需要扫描的窗口")
-        start_label.pack(pady=5)
-
-        selected_window = tk.StringVar(value=window_titles[0])  # 默认选择第一个窗口
-        window_combobox = ttk.Combobox(process_window, textvariable=selected_window, values=window_titles, state="readonly")
-        window_combobox.pack(pady=5)
-
-        entry = tk.Entry(process_window)
-        entry.pack(pady=5)
-
-        def on_combobox_change(event):
-            entry.delete(0, tk.END)
-            if selected_window.get() == "选择操作窗口":
-                entry.insert(0, "")
-            else:
-                entry.insert(0, selected_window.get())
-
-        # 绑定 combobox 选择事件
-        window_combobox.bind("<<ComboboxSelected>>", on_combobox_change)
-
-        def confirm_selection():
-            window_name = entry.get()  # 获取下拉框选中的窗口名称
-            self.tab.tk_label_process_label.config(text=window_name)  # 更新标签的内容
-            self.process_name = window_name  # 更新属性的值
-            # 关闭设置窗口
-            process_window.destroy()
-
-        confirm_button = tk.Button(process_window, text="确认", command=confirm_selection)
-        confirm_button.pack(pady=10)
+    # 浏览图片所在位置的文本框填入
+    def browse_target_image(self, evt, text_box_number):
+        if self.image_path is not None:
+            target_image_path_str = filedialog.askopenfilename(initialdir=os.path.dirname(self.image_path),
+                                                                initialfile=os.path.basename(self.image_path),
+                                                                title="Select file",
+                                                                filetypes=(
+                                                                    ("jpeg files", "*.jpg"), ("all files", "*.*")))
+        else:
+            target_image_path_str = filedialog.askopenfilename(title="Select file",
+                                                                filetypes=(
+                                                                    ("jpeg files", "*.jpg"), ("all files", "*.*")))
+        if text_box_number == 1:
+            self.tab.tk_input_photo1_text.delete(0, tk.END)
+            self.tab.tk_input_photo1_text.insert(0, target_image_path_str)
+        elif text_box_number == 2:
+            self.tab.tk_input_photo2_text.delete(0, tk.END)
+            self.tab.tk_input_photo2_text.insert(0, target_image_path_str)
+        elif text_box_number == 3:
+            self.tab.tk_input_photo3_text.delete(0, tk.END)
+            self.tab.tk_input_photo3_text.insert(0, target_image_path_str)
+        elif text_box_number == 4:
+            self.tab.tk_input_photo4_text.delete(0, tk.END)
+            self.tab.tk_input_photo4_text.insert(0, target_image_path_str)
+        self.save_photos()
 
     # 选择的图片地址显示出来
     def select_photo_show(self):
@@ -790,45 +439,57 @@ class TabController:
                 self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
 
     # 更改地址参数的选项,让地址(x1,y1),(x2,y2)符合状态
-    def address_change(self, address_select=None):
-        if address_select is None:
+    def address_change(self,evt, address_select=None,change_type="del"):
+        if address_select is None :
             address_select = self.tab.tk_select_box_photo_address.get()
             start_address = self.tab.tk_label_photo_start_label.cget("text")
             end_address = self.tab.tk_label_photo_end_label.cget("text")
-            if address_select == "地址1":
-                start_x, start_y = map(int, start_address.strip('()').split(','))
-                end_x, end_y = map(int, end_address.strip('()').split(','))
-                self.selection1_address = [start_x, start_y, end_x, end_y]
-                return self.selection1_address
-            elif address_select == "地址2":
-                start_x, start_y = map(int, start_address.strip('()').split(','))
-                end_x, end_y = map(int, end_address.strip('()').split(','))
-                self.selection2_address = [start_x, start_y, end_x, end_y]
-                return self.selection2_address
-            elif address_select == "地址3":
-                start_x, start_y = map(int, start_address.strip('()').split(','))
-                end_x, end_y = map(int, end_address.strip('()').split(','))
-                self.selection3_address = [start_x, start_y, end_x, end_y]
-                return self.selection3_address
-            elif address_select == "地址4":
-                start_x, start_y = map(int, start_address.strip('()').split(','))
-                end_x, end_y = map(int, end_address.strip('()').split(','))
-                self.selection4_address = [start_x, start_y, end_x, end_y]
-                return self.selection4_address
-        else:
-            if address_select == "地址1":
-                return self.selection1_address
-            elif address_select == "地址2":
-                return self.selection2_address
-            elif address_select == "地址3":
-                return self.selection3_address
-            elif address_select == "地址4":
-                return self.selection4_address
-
-    # 保存框选的地址
-    def select_photo_save(self, evt):
-        # 保存对应地址1~4的函数
-        self.address_change()
+            if change_type == "del": #不给选择地址,选择删除模式
+                self.tab.tk_label_photo_start_label.config(text="(0,0)")
+                self.tab.tk_label_photo_end_label.config(text="(0,0)")
+                if address_select == "地址1":
+                    self.selection1_address = [0, 0, 0, 0]
+                    return
+                elif address_select == "地址2":
+                    self.selection2_address = [0, 0, 0, 0]
+                    return
+                elif address_select == "地址3":
+                    self.selection3_address = [0, 0, 0, 0]
+                    return
+                elif address_select == "地址4":
+                    self.selection4_address = [0, 0, 0, 0]
+                    return
+            elif change_type == "save": #不给选择地址,选择保存模式
+                if address_select == "地址1":
+                    start_x, start_y = map(int, start_address.strip('()').split(','))
+                    end_x, end_y = map(int, end_address.strip('()').split(','))
+                    self.selection1_address = [start_x, start_y, end_x, end_y]
+                    return self.selection1_address
+                elif address_select == "地址2":
+                    start_x, start_y = map(int, start_address.strip('()').split(','))
+                    end_x, end_y = map(int, end_address.strip('()').split(','))
+                    self.selection2_address = [start_x, start_y, end_x, end_y]
+                    return self.selection2_address
+                elif address_select == "地址3":
+                    start_x, start_y = map(int, start_address.strip('()').split(','))
+                    end_x, end_y = map(int, end_address.strip('()').split(','))
+                    self.selection3_address = [start_x, start_y, end_x, end_y]
+                    return self.selection3_address
+                elif address_select == "地址4":
+                    start_x, start_y = map(int, start_address.strip('()').split(','))
+                    end_x, end_y = map(int, end_address.strip('()').split(','))
+                    self.selection4_address = [start_x, start_y, end_x, end_y]
+                    return self.selection4_address
+        elif address_select is not None:
+            if change_type is None: #给选择地址,选择读取模式
+                if address_select == "地址1":
+                    return self.selection1_address
+                elif address_select == "地址2":
+                    return self.selection2_address
+                elif address_select == "地址3":
+                    return self.selection3_address
+                elif address_select == "地址4":
+                    return self.selection4_address
         self.save_photos()
 
     # 根据位置来读取照片
@@ -888,7 +549,7 @@ class TabController:
     #扫描循环(此处是进行扫描的核心代码)
     def scan_loop(self, target_image, photo_address, chosen_index, max_loops):
         # 检查地址内容
-        address_content = self.address_change(address_select=photo_address)
+        address_content = self.address_change(evt=None,address_select=photo_address,change_type=None)
         screenshot=None
         if address_content == [0, 0, 0, 0]:
             self.tab.tk_label_scanning_state_label.config(text="地址无效")
@@ -1028,19 +689,19 @@ class TabController:
             if self.selection1_address == [0, 0, 0, 0]:
                 self.selection1_address = [self.start_x, self.start_y, self.end_x, self.end_y]
                 self.tab.tk_select_box_photo_address.set("地址1")  # 更新地址显示
-                self.select_photo_save(evt)
+                self.address_change(evt,change_type="save")
             elif self.selection2_address == [0, 0, 0, 0]:
                 self.selection2_address = [self.start_x, self.start_y, self.end_x, self.end_y]
                 self.tab.tk_select_box_photo_address.set("地址2")  # 更新地址显示
-                self.select_photo_save(evt)
+                self.address_change(evt,change_type="save")
             elif self.selection3_address == [0, 0, 0, 0]:
                 self.selection3_address = [self.start_x, self.start_y, self.end_x, self.end_y]
                 self.tab.tk_select_box_photo_address.set("地址3")  # 更新地址显示
-                self.select_photo_save(evt)
+                self.address_change(evt,change_type="save")
             elif self.selection4_address == [0, 0, 0, 0]:
                 self.selection4_address = [self.start_x, self.start_y, self.end_x, self.end_y]
                 self.tab.tk_select_box_photo_address.set("地址4")  # 更新地址显示
-                self.select_photo_save(evt)
+                self.address_change(evt,change_type="save")
             self.manual_selection_window.destroy()
             if grab_photo:  # 如果需要截图
                 x1, y1 = min(self.start_x, self.end_x), min(self.start_y, self.end_y)
@@ -1620,6 +1281,8 @@ class TabController:
         # 初始化鼠标操作窗口
         mouse_window, click_position_var, click_position_entry = open_mouse_operation_window("", position)  # 初始时点击位置为空
 
+
+#执行操作代码
     # 执行操作函数
     def execute_operations(self):
         for operation in self.operations:
@@ -1831,6 +1494,9 @@ class TabController:
                 self.stop_scanning()  # 达到扫描次数限制，停止扫描
         pass
 
+
+
+#读取保存代码
     # 读取给定文件路径下的内容并且加入自己的self.operations中
     def load_operations(self, file_path):
         try:
@@ -1919,6 +1585,49 @@ class TabController:
         with open(write_path, "w") as json_file:
             json.dump(data, json_file)
 
+    # 单独保存图片文件内容
+    def save_photo_context(self, evt):
+        self.save_photos()
+        file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if file_path:
+            # 复制文件到所选位置
+            shutil.copyfile("setting_json/photo_cache.json", file_path)
+        ("保存图片位置到文件")
+
+    # 单独读取图片文件内容
+    def load_photo_context(self, evt):
+        file_path = filedialog.askopenfilename(initialdir=os.path.dirname(self.file_path),
+                                                initialfile=os.path.basename(self.file_path),
+                                                title="读取操作列表",
+                                                filetypes=(("Json files", "*.json"), ("All files", "*.*")))
+        if file_path:
+            self.populate_photo_address(file_path)
+        ("从文件中读取具体图片位置")
+
+    # 单独保存操作文件内容
+    def save_operation_context(self, evt):
+        self.save_operations()
+        file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if file_path:
+            # 复制文件到所选位置
+            shutil.copyfile("setting_json/operation_cache.json", file_path)
+
+    # 单独读取操作文件内容
+    def load_operation_context(self, evt):
+
+        file_path = filedialog.askopenfilename(initialdir=os.path.dirname(self.file_path),
+                                                initialfile=os.path.basename(self.file_path),
+                                                title="读取操作列表",
+                                                filetypes=(("Json files", "*.json"), ("All files", "*.*")))
+        if file_path:
+            with open(file_path, 'rb') as file:
+                self.operations = self.load_operations(file_path)
+                self.save_operations()
+                self.populate_operation_list()
+
+
+
+#界面复现代码
     # 打印操作列表到面板
     def populate_operation_list(self):
         self.tab.tk_table_operation_box.delete(*self.tab.tk_table_operation_box.get_children())  # Clear the table
@@ -1985,29 +1694,333 @@ class TabController:
 
             self.select_photo_show()
 
-    # 相似度读取与写入
+
+#默认设置代码
+    # 打开默认图片设置窗口并且记录默认图片信息
+    def set_default_photo(self, evt):
+        default_photo_window = tk.Toplevel(self.ui)
+        default_photo_window.title("设置默认图片")
+        default_photo_window.geometry("355x500")
+        default_photo_window.lift()
+        default_photo_window.focus_set()
+
+        with open('setting_json/default_photo.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        text_widget = tk.Text(default_photo_window, wrap=tk.WORD, width=35, height=20)
+        text_widget.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
+        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+
+        save_button = tk.Button(default_photo_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
+        save_button.grid(row=1, column=0, pady=10)
+
+        set_default_button = tk.Button(default_photo_window, text="导入本扫描图片信息", command=lambda:load_settings())
+        set_default_button.grid(row=1, column=1, pady=10)
+
+        def save_settings(settings_data_str):
+            try:
+            # Convert the JSON string back to a dictionary
+                settings_data = json.loads(settings_data_str)
+            # 保存在默认图片的文件中
+                with open('setting_json/default_photo.json', 'w', encoding='utf-8') as f:
+                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
+                default_photo_window.destroy()
+            except Exception as e:
+                now = datetime.now()
+                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+                log_filename = f"backtrace_logs/{timestamp}"
+
+                with open(log_filename, "w") as file:
+                    file.write(f"Error occurred at {now}:\n")
+                    traceback.print_exc(file=file)  # 将异常信息写入文件
+
+        def load_settings():
+            data = self.save_photos(default_photo=None,getdata="1")
+            text_widget.delete("1.0", tk.END)
+            text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+
+    # 打开默认操作设置窗口并且记录默认操作信息
+    def set_default_operation(self, evt):
+
+        default_operation_window = tk.Toplevel(self.ui)
+        default_operation_window.title("设置默认操作")
+        default_operation_window.geometry("440x400")
+        default_operation_window.lift()
+        default_operation_window.focus_set()
+
+        with open('setting_json/default_operation.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        text_widget = tk.Text(default_operation_window, wrap=tk.WORD, width=44, height=15)
+        text_widget.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
+        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+
+        save_button = tk.Button(default_operation_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
+        save_button.grid(row=1, column=0, pady=10)
+
+        set_default_button = tk.Button(default_operation_window, text="导入本扫描操作信息", command=lambda:load_settings())
+        set_default_button.grid(row=1, column=1, pady=10)
+
+        def save_settings(settings_data_str):
+            try:
+                settings_data = json.loads(settings_data_str)
+                with open('setting_json/default_operation.json', 'w', encoding='utf-8') as f:
+                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
+                default_operation_window.destroy()
+            except Exception as e:
+                now = datetime.now()
+                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
+                log_filename = f"backtrace_logs/{timestamp}"
+
+                with open(log_filename, "w") as file:
+                    file.write(f"Error occurred at {now}:\n")
+                    traceback.print_exc(file=file)  # 将异常信息写入文件
+
+        def load_settings():
+            data = {}
+            i = 0
+            for operation in self.operations:
+                operation_index = i
+                operation_name = operation
+                data[i] = {"operation_index": operation_index, "operation_name": operation_name}
+                i = i + 1
+            text_widget.delete("1.0", tk.END)
+            text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+
+    # 设置默认快捷键
+    def set_default_key(self, evt):
+        default_key_window = tk.Toplevel(self.ui)
+        default_key_window.title("设置默认图片")
+        default_key_window.geometry("355x500")
+        default_key_window.lift()
+        default_key_window.focus_set()
+
+        with open('setting_json/key_setting.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        text_widget = tk.Text(default_key_window, wrap=tk.WORD, width=35, height=20)
+        text_widget.grid(row=0, column=0, padx=10, pady=10)
+        text_widget.insert(tk.END, json.dumps(data, indent=4, ensure_ascii=False))
+
+        save_button = tk.Button(default_key_window, text="保存", command=lambda: save_settings(text_widget.get("1.0", tk.END)))
+        save_button.grid(row=1, column=0, pady=10)
+
+        def save_settings(settings_data_str):
+            try:
+                settings_data = json.loads(settings_data_str)
+                with open('setting_json/key_setting.json', 'w', encoding='utf-8') as f:
+                    json.dump(settings_data, f, indent=4, ensure_ascii=False)
+                self.ui.ctl.bind_keys(path = "setting_json/key_setting.json")
+                default_key_window.destroy()
+            except Exception as e:
+                self.error_print(f"保存默认快捷键时发生错误: {e}")
+
+    # 设置默认相似度
+    def set_default_similar(self, evt, similar):
+        # 设置相似度
+        numeric_value_str = similar.replace('%', '')
+        numeric_value = float(numeric_value_str) / 100.0
+        self.check_similar = numeric_value
+        self.save_else("相似度", numeric_value)
+
+    # 设置随机偏移
+    def set_random_offset(self, evt):
+        self.random_offset = int(self.tab.tk_scale_num_random_offset.get())
+        self.save_else("随机偏移", self.random_offset)
+
+    # 设置默认扫描方式(强相似/若相似)
+    def set_default_check(self, evt):
+        self.default_check = self.tab.tk_select_box_check_out_box.get()
+        self.save_else("策略",self.default_check)
+        return
+
+    #设置默认扫描时间
+    def set_scan_time(self, evt):
+        # 创建设置窗口
+        scan_time_window = tk.Toplevel(self.ui)
+        scan_time_window.title("设置扫描间隔")
+        scan_time_window.geometry("300x250")
+
+        # 输入框和单选按钮
+        input_frame = tk.Frame(scan_time_window)
+        input_frame.pack(pady=10)
+
+        # 输入框：扫描间隔（秒）
+        input_label = tk.Label(input_frame, text="请输入扫描间隔(毫秒ms):")
+        input_label.pack(pady=5)
+
+        input_entry = tk.Entry(input_frame)
+        input_entry.insert(0, self.scan_interval)  # 默认填充100ms
+        input_entry.pack(pady=5)
+
+        # 单选按钮：选择执行判断方式
+        method_var = tk.StringVar(value=self.execution_method)
+
+        method_label = tk.Label(input_frame, text="执行成功判断方式：")
+        method_label.pack(pady=5)
+
+        rb_script_done = tk.Radiobutton(input_frame, text="脚本执行完毕", variable=method_var, value="script_done")
+        rb_script_done.pack()
+
+        rb_scan_changed = tk.Radiobutton(input_frame, text="扫描结果发生变化", variable=method_var, value="scan_changed")
+        rb_scan_changed.pack()
+
+        # 确认按钮
+        def confirm_scan_time():
+            # 获取扫描间隔和选择的判断方式
+            try:
+                scan_interval = input_entry.get()  # 转换为毫秒
+                self.scan_interval = int(scan_interval)
+                self.save_else("扫描时间", self.scan_interval)
+            except ValueError:
+                tk.messagebox.showwarning("警告", "请输入有效的数字！")
+                return
+
+            self.execution_method = method_var.get()
+
+            # 关闭设置窗口
+            scan_time_window.destroy()
+
+        confirm_button = tk.Button(scan_time_window, text="确认", command=confirm_scan_time)
+        confirm_button.pack(pady=10)
+
+    # 设置定时停止扫描
+    def set_operaton_timeout(self, evt):
+        self.time_limit = None
+        self.scan_limit = None
+        self.execution_limit = None
+        # 创建设置面板
+        timeout_window = tk.Toplevel(self.ui)
+        timeout_window.title("设置操作超时")
+        timeout_window.geometry("300x300")
+
+        # 输入框和单选按钮
+        input_frame = tk.Frame(timeout_window)
+        input_frame.pack(pady=10)
+
+        # 选项的单选按钮
+        timeout_option = tk.StringVar(value="定时停止")
+
+        timeout_choices = [("定时停止（秒）", "定时停止"), ("扫描成功次数（次）", "扫描次数"), ("脚本执行成功次数（次）", "脚本次数")]
+
+        for text, value in timeout_choices:
+            rb = tk.Radiobutton(input_frame, text=text, variable=timeout_option, value=value)
+            rb.pack()
+
+        # 输入框
+        input_label = tk.Label(input_frame, text="请输入时间或次数：")
+        input_label.pack(pady=5)
+
+        input_entry = tk.Entry(input_frame)
+        input_entry.pack(pady=5)
+
+        # 确认按钮
+        def confirm_timeout_input():
+            # 获取选择的操作类型和输入的值
+            selected_option = timeout_option.get()
+            input_value = input_entry.get()
+
+            if not input_value.isdigit():
+                tk.messagebox.showwarning("警告", "请输入有效的数字！")
+                return
+
+            # 生成输出文本
+            if selected_option == "定时停止":
+                result_text = f"定时 {input_value} 秒 结束扫描"
+                self.time_limit = float(input_value)
+            elif selected_option == "扫描次数":
+                result_text = f"扫描成功 {int(input_value)} 次后停止"
+                self.scan_limit = int(input_value)
+            elif selected_option == "脚本次数":
+                result_text = f"脚本执行成功 {int(input_value)} 次后停止"
+                self.execution_limit = int(input_value)
+            self.tab.tk_label_operation_timeout_limit.config(text=result_text)
+            timeout_window.destroy()  # 关闭窗口
+
+        # 确认按钮
+        confirm_button = tk.Button(timeout_window, text="确认", command=confirm_timeout_input)
+        confirm_button.pack(pady=10)
+
+    #打开窗口选择窗口,设置扫描窗口名
+    def open_window_selection(self, evt):
+        # 创建设置面板
+        process_window = tk.Toplevel(self.ui)
+        process_window.title("选择操作窗口")
+        process_window.geometry("300x200")
+        process_window.lift()
+        process_window.focus_set()
+
+        # 获取当前打开的窗口标题
+        window_titles = [win.title for win in gw.getWindowsWithTitle('')
+                        if win.title.strip()]  # 获取当前所有窗口的标题
+
+        # 如果没有窗口，则给出提示
+        if not window_titles:
+            window_titles = ["没有可用窗口"]
+
+        start_label = tk.Label(process_window, text="请选择需要扫描的窗口")
+        start_label.pack(pady=5)
+
+        selected_window = tk.StringVar(value=window_titles[0])  # 默认选择第一个窗口
+        window_combobox = ttk.Combobox(process_window, textvariable=selected_window, values=window_titles, state="readonly")
+        window_combobox.pack(pady=5)
+
+        entry = tk.Entry(process_window)
+        entry.pack(pady=5)
+
+        def on_combobox_change(event):
+            entry.delete(0, tk.END)
+            if selected_window.get() == "选择操作窗口":
+                entry.insert(0, "")
+            else:
+                entry.insert(0, selected_window.get())
+
+        # 绑定 combobox 选择事件
+        window_combobox.bind("<<ComboboxSelected>>", on_combobox_change)
+
+        def confirm_selection():
+            window_name = entry.get()  # 获取下拉框选中的窗口名称
+            self.tab.tk_label_process_label.config(text=window_name)  # 更新标签的内容
+            self.process_name = window_name  # 更新属性的值
+            # 关闭设置窗口
+            process_window.destroy()
+
+        confirm_button = tk.Button(process_window, text="确认", command=confirm_selection)
+        confirm_button.pack(pady=10)
+
+    # 默认相似度/扫描策略/随机偏移/扫描间隔/···读取
     def similar_bind(self):
         json_file = self.key_setting_path
         try:
             with open(json_file, "r", encoding="utf-8") as file:
                 settings = json.load(file)
         except FileNotFoundError:
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                traceback.print_exc(file=file)  # 将异常信息写入文件
+            self.error_print("未找到文件")
         # 获取相似度值
-        if "else" in settings and "相似度" in settings["else"]:
-            self.check_similar = settings["else"]["相似度"]
+        if "else" in settings:
+            if "相似度" in settings["else"]:
+                self.check_similar = settings["else"]["相似度"]
+            else:
+                self.error_print("Key disappear:未找到相似度")
+
+            if "随机偏移" in settings["else"]:
+                self.random_offset = int(settings["else"]["随机偏移"])
+                self.tab.tk_scale_num_random_offset.set(self.random_offset)
+            else:
+                self.error_print("Key disappear:未找到随机偏移")
+
+            if "策略" in settings["else"]:
+                self.check_method = settings["else"]["策略"]
+                self.tab.tk_select_box_check_out_box.set(self.check_method)
+            else:
+                self.error_print("Key disappear:未找到扫描策略")
+
+            if "扫描时间" in settings["else"]:
+                self.scan_interval = settings["else"]["扫描时间"]
+            else:
+                self.error_print("Key disappear:未找到扫描时间")
         else:
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                file.write(f"Key disappear:'相似度' is not founded\n")
+            self.error_print("Key disappear:未找到else选项")
 
 
 

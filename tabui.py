@@ -12,7 +12,7 @@ from datetime import datetime
 class TabGUI(Frame):
     ui: object
     def __init__(self, parent, ui):
-        self.parent = parent
+        self.parent = parent #父窗口,即主窗口中的tabview控件
         self.key_setting_path = "setting_json/key_setting.json"
 
         self.ext_tabs_second_tab = self.__ext_tabs_second_tab(parent)
@@ -348,7 +348,6 @@ class TabGUI(Frame):
         return cb
 
 
-
     def __tk_frame_photo3_container(self, parent):
         frame = Frame(parent, bootstyle="default")
         frame.place(x=10, y=144, width=480, height=61)
@@ -510,7 +509,7 @@ class TabGUI(Frame):
         return label
 
     def __tk_button_select_photo_save(self, parent):
-        btn = Button(parent, text="记录", takefocus=False, bootstyle="info")
+        btn = Button(parent, text="删除地址", takefocus=False, bootstyle="info")
         btn.place(x=7, y=4, width=120, height=60)
         return btn
 
@@ -821,7 +820,7 @@ class TabGUI(Frame):
         self.tk_button_select_photo_button.bind('<Button-1>',lambda event:  self.ctl.open_manual_selection_window(event,grab_photo=True))
 
         # 保存选择图片的地址
-        self.tk_button_select_photo_save.bind('<Button-1>', self.ctl.select_photo_save)
+        self.tk_button_select_photo_save.bind('<Button-1>', self.ctl.address_change)
         pass
 
     def __style_config(self):

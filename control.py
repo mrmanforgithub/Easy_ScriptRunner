@@ -6,7 +6,9 @@ from tkinter.simpledialog import askstring
 import keyboard
 import traceback
 from datetime import datetime
-
+import win32gui
+import win32con
+import win32com.client
 
 
 class Controller:
@@ -76,21 +78,20 @@ class Controller:
                 "operations": page_operations,
                 "images":
                     {"地址1": self.tabs[tab_index].ctl.selection1_address,
-                     "地址2": self.tabs[tab_index].ctl.selection2_address,
-                     "地址3": self.tabs[tab_index].ctl.selection3_address,
-                     "地址4": self.tabs[tab_index].ctl.selection4_address,
-                     "图片1的位置": self.tabs[tab_index].tk_input_photo1_text.get(),
-                     "图片2的位置": self.tabs[tab_index].tk_input_photo2_text.get(),
-                     "图片3的位置": self.tabs[tab_index].tk_input_photo3_text.get(),
-                     "图片4的位置": self.tabs[tab_index].tk_input_photo4_text.get(),
-                     "图片1的地址": self.tabs[tab_index].tk_select_box_photo1_scan_box.get(),
-                     "图片2的地址": self.tabs[tab_index].tk_select_box_photo2_scan_box.get(),
-                     "图片3的地址": self.tabs[tab_index].tk_select_box_photo3_scan_box.get(),
-                     "图片4的地址": self.tabs[tab_index].tk_select_box_photo4_scan_box.get(),
-                     "图片1的与或非": self.tabs[tab_index].tk_select_box_photo1_switch_box.get(),
-                     "图片2的与或非": self.tabs[tab_index].tk_select_box_photo2_switch_box.get(),
-                     "图片3的与或非": self.tabs[tab_index].tk_select_box_photo3_switch_box.get(),
-                     "图片4的与或非": self.tabs[tab_index].tk_select_box_photo4_switch_box.get()}
+                    "地址2": self.tabs[tab_index].ctl.selection2_address,
+                    "地址3": self.tabs[tab_index].ctl.selection3_address,
+                    "地址4": self.tabs[tab_index].ctl.selection4_address,
+                    "图片1的位置": self.tabs[tab_index].tk_input_photo1_text.get(),
+                    "图片2的位置": self.tabs[tab_index].tk_input_photo2_text.get(),
+                    "图片3的位置": self.tabs[tab_index].tk_input_photo3_text.get(),
+                    "图片4的位置": self.tabs[tab_index].tk_input_photo4_text.get(),
+                    "图片1的地址": self.tabs[tab_index].tk_select_box_photo1_scan_box.get(),
+                    "图片2的地址": self.tabs[tab_index].tk_select_box_photo2_scan_box.get(),
+                    "图片3的地址": self.tabs[tab_index].tk_select_box_photo3_scan_box.get(),
+                    "图片4的地址": self.tabs[tab_index].tk_select_box_photo4_scan_box.get(),
+                    "满足方式": self.tabs[tab_index].photo_if_var.get(),
+                    "窗口选择": self.tabs[tab_index].ctl.process_name
+                    }
             }
             scan_page[scan_name].append(page)
         data["pages"].append(scan_page)
@@ -142,16 +143,37 @@ class Controller:
                 time.sleep(0.25)
             if not self.keep_scanning:  # 在每次循环结束后再次检查标志位
                 break
-            time.sleep(0.25)
+            time.sleep(0.1)
+
+    # 获取所有窗口句柄
+    def get_all_hwnd(self):
+        def impl(hwnd, *args):
+            if win32gui.IsWindow(hwnd) and win32gui.IsWindowEnabled(hwnd) and win32gui.IsWindowVisible(hwnd):
+                hwnd_map.update({hwnd: win32gui.GetWindowText(hwnd)})
+        hwnd_map = {}
+        win32gui.EnumWindows(impl, 0)
+        return hwnd_map
+    # 将窗口置顶
+    def window_show_top(self,window_title):
+        hwnd_map = self.get_all_hwnd()
+        for handle, title in hwnd_map.items():
+            if not title or title != window_title:
+                continue
+            win32gui.BringWindowToTop(handle)
+            shell = win32com.client.Dispatch("WScript.Shell")
+            shell.SendKeys('%')
+            # 被其他窗口遮挡，调用后放到最前面
+            win32gui.SetForegroundWindow(handle)
+            # 解决被最小化的情况
+            win32gui.ShowWindow(handle, win32con.SW_RESTORE)
 
     def tab_stop_enter(self, evt):
+        self.window_show_top("脚本运行器")
         if self.keep_scanning is True:
             self.keep_scanning = False
         for tab in self.tabs:
             tab.ctl.stop_scanning()
-        self.ui.focus_force()  # 窗口置顶
         self.ui.show_window() #关闭一下系统托盘
-        self.ui.lift()  # 将主窗口放置在其他窗口之上
 
     def tab_question_enter(self, evt):
         messagebox.showinfo("提示", "侧边栏内容（从上到下）"
