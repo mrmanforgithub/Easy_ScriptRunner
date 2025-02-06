@@ -18,7 +18,7 @@ class ToolTip:
         self.tip_window = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry("+%d+%d" % (x, y))
-        tip_width = self.widget.winfo_width()
+        tip_width = self.widget.winfo_width()+50
         label = tk.Label(tw, text=self.text, justify=tk.LEFT,
                         background="black", foreground="white",
                         relief=tk.SOLID, borderwidth=1,

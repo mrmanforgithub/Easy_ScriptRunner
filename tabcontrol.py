@@ -16,6 +16,7 @@ import win32gui
 import win32con
 import re
 import io
+import pygetwindow as gw
 
 class TabController:
     # 导入UI类后,替换以下的 object 类型,将获得 IDE 属性提示功能
@@ -45,6 +46,8 @@ class TabController:
         self.previous_scan_result = None
 
         self.photo_if = "all"  #图片策略
+
+        self.process_name = None  #选择窗口进程名
 
         self.file_path = "setting_json/operation_cache.json"  # 缓存文件,临时记录操作数据,关闭后清空
         self.photo_path = "setting_json/photo_cache.json"  # 缓存文件,临时记录图片数据,关闭后清空
@@ -715,6 +718,53 @@ class TabController:
         confirm_button = tk.Button(timeout_window, text="确认", command=confirm_timeout_input)
         confirm_button.pack(pady=10)
 
+    #打开窗口选择窗口
+    def open_window_selection(self, evt):
+        # 创建设置面板
+        process_window = tk.Toplevel(self.ui)
+        process_window.title("选择操作窗口")
+        process_window.geometry("300x200")
+        process_window.lift()
+        process_window.focus_set()
+
+        # 获取当前打开的窗口标题
+        window_titles = [win.title for win in gw.getWindowsWithTitle('')
+                        if win.title.strip()]  # 获取当前所有窗口的标题
+
+        # 如果没有窗口，则给出提示
+        if not window_titles:
+            window_titles = ["没有可用窗口"]
+
+        start_label = tk.Label(process_window, text="请选择需要扫描的窗口")
+        start_label.pack(pady=5)
+
+        selected_window = tk.StringVar(value=window_titles[0])  # 默认选择第一个窗口
+        window_combobox = ttk.Combobox(process_window, textvariable=selected_window, values=window_titles, state="readonly")
+        window_combobox.pack(pady=5)
+
+        entry = tk.Entry(process_window)
+        entry.pack(pady=5)
+
+        def on_combobox_change(event):
+            entry.delete(0, tk.END)
+            if selected_window.get() == "选择操作窗口":
+                entry.insert(0, "")
+            else:
+                entry.insert(0, selected_window.get())
+
+        # 绑定 combobox 选择事件
+        window_combobox.bind("<<ComboboxSelected>>", on_combobox_change)
+
+        def confirm_selection():
+            window_name = entry.get()  # 获取下拉框选中的窗口名称
+            self.tab.tk_label_process_label.config(text=window_name)  # 更新标签的内容
+            self.process_name = window_name  # 更新属性的值
+            # 关闭设置窗口
+            process_window.destroy()
+
+        confirm_button = tk.Button(process_window, text="确认", command=confirm_selection)
+        confirm_button.pack(pady=10)
+
     # 选择的图片地址显示出来
     def select_photo_show(self):
         address_select = self.tab.tk_select_box_photo_address.get()
@@ -846,6 +896,13 @@ class TabController:
             return
         if self.scanning and (max_loops is None or max_loops > 0):
             self.tab.tk_button_start_scanning_button.configure(text="关闭扫描")
+            active_window = gw.getActiveWindow()
+            if active_window:
+                if self.process_name and self.process_name not in active_window.title:
+                    self.tab.tk_label_scanning_state_label.config(text="选择窗口未置顶", background="#FFB84D")
+                    self.blink = False
+                    self.ui.after(self.scan_interval, lambda: self.scan_loop(target_image, photo_address, chosen_index, max_loops))
+                    return  # 不执行操作
             x1, y1, x2, y2 = address_content
             screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2))
             screen_region = np.array(screenshot)
@@ -906,6 +963,7 @@ class TabController:
                 else:
                     self.previous_scan_result=False
             elif self.photo_if == "one":
+                current_scan_result = self.previous_scan_result
                 # 如果是 "one"，只要有一个是 "是" 就满足
                 if "是" in self.result_check:
                     self.previous_scan_result=True
@@ -1760,7 +1818,6 @@ class TabController:
                         if i + 1 < num_points:
                             pyautogui.moveTo(positions[i + 1][0], positions[i + 1][1], duration=time_per_move)
 
-
         if self.execution_method == "script_done":
             self.execution_count += 1 # 记录执行成功次数
 
@@ -1849,7 +1906,8 @@ class TabController:
                 "图片2的地址": self.tab.tk_select_box_photo2_scan_box.get(),
                 "图片3的地址": self.tab.tk_select_box_photo3_scan_box.get(),
                 "图片4的地址": self.tab.tk_select_box_photo4_scan_box.get(),
-                "满足方式": self.tab.photo_if_var.get()
+                "满足方式": self.tab.photo_if_var.get(),
+                "窗口选择": self.process_name
                 }
         if default_photo is None:
             write_path = self.photo_path
@@ -1898,6 +1956,8 @@ class TabController:
             self.tab.tk_select_box_photo3_scan_box.set(data.get("图片3的地址", "地址1"))
             self.tab.tk_select_box_photo4_scan_box.set(data.get("图片4的地址", "地址1"))
             self.tab.photo_if_var.set(data.get("满足方式", "all"))
+            self.tab.tk_label_process_label.config(text=data.get("窗口选择", "窗口选择"+"\n暂无"))
+            self.process_name = data.get("窗口选择", None)
 
             self.select_photo_show()
 
@@ -1921,6 +1981,7 @@ class TabController:
             self.tab.tk_select_box_photo3_scan_box.set("地址1")
             self.tab.tk_select_box_photo4_scan_box.set("地址1")
             self.tab.photo_if_var.set("all")
+            self.tab.tk_label_process_label.config(text="窗口选择"+"\n无")
 
             self.select_photo_show()
 

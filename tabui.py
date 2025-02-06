@@ -82,6 +82,10 @@ class TabGUI(Frame):
         self.tk_radio_button_photo_if_one = self.__tk_radio_button_photo_if_one( self.tk_frame_photo_other)
         # 扫描策略标签
         self.tk_label_photo_if_label = self.__tk_label_photo_if_label( self.tk_frame_photo_other)
+        # 窗口选择按钮
+        self.tk_button_process_button = self.__tk_button_process_button(self.tk_frame_photo_other)
+        # 窗口选择标签
+        self.tk_label_process_label = self.__tk_label_process_label( self.tk_frame_photo_other)
 
         # 图片保存容器
         self.tk_frame_photo_save_container = self.__tk_frame_photo_save_container(self.tk_frame_photo_all_container)
@@ -264,7 +268,7 @@ class TabGUI(Frame):
         return btn
 
     def __tk_label_scanning_state_label(self, parent):
-        label = Label(parent, text="扫描状态", anchor="center", bootstyle="info inverse",background="#6c757d")
+        label = Label(parent, text="未开始扫描", anchor="center", bootstyle="info inverse",background="#6c757d")
         label.place(x=8, y=2, width=176, height=40)
         return label
 
@@ -438,30 +442,40 @@ class TabGUI(Frame):
 
     def __tk_button_save_photo_button(self, parent):
         btn = Button(parent, text="单 独 保 存", takefocus=False, bootstyle="info")
-        btn.place(x=8, y=4, width=267, height=30)
+        btn.place(x=8, y=4, width=272, height=30)
         return btn
 
     def __tk_button_load_photo_button(self, parent):
         btn = Button(parent, text="单 独 读 取", takefocus=False, bootstyle="default")
-        btn.place(x=283, y=4, width=267, height=30)
+        btn.place(x=288, y=4, width=272, height=30)
         return btn
 
     def __tk_frame_photo_other(self,parent):
         frame = Frame(parent,bootstyle="default")
-        frame.place(x=490, y=10, width=85, height=261)
+        frame.place(x=490, y=10, width=79, height=261)
         return frame
     def __tk_radio_button_photo_if_all(self,parent):
         rb = Radiobutton(parent,text="全部"+"\n满足",bootstyle="default",variable=self.photo_if_var, value="all")
-        rb.place(x=5, y=51, width=73, height=40)
+        rb.place(x=8, y=51, width=69, height=40)
         return rb
     def __tk_radio_button_photo_if_one(self,parent):
         rb = Radiobutton(parent,text="满足"+"\n一个",bootstyle="default", variable=self.photo_if_var, value="one")
-        rb.place(x=5, y=100, width=73, height=40)
+        rb.place(x=8, y=100, width=69, height=40)
         return rb
     def __tk_label_photo_if_label(self,parent):
         label = Label(parent,text="扫描策略",anchor="center", bootstyle="default")
-        label.place(x=1, y=0, width=73, height=48)
+        label.place(x=4, y=2, width=73, height=48)
         return label
+
+    def __tk_button_process_button(self,parent):
+        btn = Button(parent, text="选择"+"\n窗口", takefocus=False, bootstyle="default")
+        btn.place(x=0, y=205, width=78, height=56)
+        return btn
+    def __tk_label_process_label(self,parent):
+        label = Label(parent,text="窗口选择"+"\n无",anchor="center", bootstyle="default")
+        label.place(x=2, y=150, width=75, height=55)
+        return label
+
 
     def __tk_frame_select_box(self, parent):
         frame = Frame(parent, bootstyle="default")
@@ -469,13 +483,13 @@ class TabGUI(Frame):
         return frame
 
     def __tk_button_select_button(self, parent):
-        btn = Button(parent, text="手动框选", takefocus=False, bootstyle="info")
-        btn.place(x=7, y=4, width=120, height=60)
+        btn = Button(parent, text="手动框选", takefocus=False, bootstyle="default")
+        btn.place(x=288, y=4, width=130, height=60)
         return btn
 
     def __tk_button_select_photo_button(self, parent):
         btn = Button(parent, text="一键截图", takefocus=False, bootstyle="default")
-        btn.place(x=432, y=4, width=120, height=60)
+        btn.place(x=432, y=4, width=130, height=60)
         return btn
 
     def __tk_select_box_photo_address(self, parent):
@@ -496,8 +510,8 @@ class TabGUI(Frame):
         return label
 
     def __tk_button_select_photo_save(self, parent):
-        btn = Button(parent, text="记录", takefocus=False, bootstyle="default")
-        btn.place(x=284, y=4, width=130, height=60)
+        btn = Button(parent, text="记录", takefocus=False, bootstyle="info")
+        btn.place(x=7, y=4, width=120, height=60)
         return btn
 
     def __tk_frame_operation_container(self, parent):
@@ -755,6 +769,8 @@ class TabGUI(Frame):
         # 单独图片读取
         self.tk_button_load_photo_button.bind('<Button-1>', self.ctl.load_photo_context)
 
+        self.tk_button_process_button.bind('<Button-1>', self.ctl.open_window_selection)
+
         # 修改操作按钮
         self.tk_button_operation_change_button.bind('<Button-1>', self.ctl.operation_change)
         # 删除操作按钮
@@ -811,19 +827,37 @@ class TabGUI(Frame):
     def __style_config(self):
         # 更改字体大小
         sty = Style()
+        #开始扫描按钮
         sty.configure(self.new_style(self.tk_button_start_scanning_button), font=("微软雅黑", -20, "bold"))
+        #扫描状态标签
         sty.configure(self.new_style(self.tk_label_scanning_state_label), font=("微软雅黑", -20, "bold"))
+        #图片四标签/按钮
         sty.configure(self.new_style(self.tk_label_photo4_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_button_photo4_browser_button), font=("微软雅黑 Light", -13, "bold"))
+        #图片三标签/按钮
         sty.configure(self.new_style(self.tk_label_photo3_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_button_photo3_browser_button), font=("微软雅黑 Light", -13, "bold"))
+        #图片二标签/按钮
         sty.configure(self.new_style(self.tk_label_photo2_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_button_photo2_browser_button), font=("微软雅黑 Light", -13, "bold"))
+        #图片一标签/按钮
         sty.configure(self.new_style(self.tk_label_photo1_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_button_photo1_browser_button), font=("微软雅黑 Light", -13, "bold"))
+        #图片单独保存/读取按钮
         sty.configure(self.new_style(self.tk_button_save_photo_button), font=("微软雅黑", -15, "bold"))
         sty.configure(self.new_style(self.tk_button_load_photo_button), font=("微软雅黑", -15, "bold"))
-
+        #图片扫描策略容器
+        sty.configure(self.new_style(self.tk_frame_photo_other), borderwidth=1, relief="solid")
+        #一键截图按钮
+        sty.configure(self.new_style(self.tk_button_select_photo_button), font=("微软雅黑", -16, "bold"))
+        #手动框选按钮
+        sty.configure(self.new_style(self.tk_button_select_button), font=("微软雅黑", -16, "bold"))
+        #选择窗口
+        sty.configure(self.new_style(self.tk_button_process_button), font=("微软雅黑", -12, "bold"))
+        #窗口选择标签
+        sty.configure(self.new_style(self.tk_label_process_label), font=("微软雅黑", -12, "bold"))
+        #图片地址记录
+        sty.configure(self.new_style(self.tk_button_select_photo_save), font=("微软雅黑", -16, "bold"))
 
         sty.configure(self.new_style(self.tk_label_operation_list_label), font=("微软雅黑", -19, "bold"))
         sty.configure(self.new_style(self.tk_button_operation_change_button), font=("微软雅黑", -20, "bold"))
@@ -851,7 +885,7 @@ class TabGUI(Frame):
         sty.configure(self.new_style(self.tk_label_photo_start_label), font=("微软雅黑", -12))
         sty.configure(self.new_style(self.tk_label_photo_end_label), font=("微软雅黑", -12))
 
-        sty.configure(self.new_style(self.tk_button_select_photo_save), font=("微软雅黑", -16, "bold"))
+
         sty.configure(self.new_style(self.tk_label_operation_timeout_limit),font=("微软雅黑",-17,"bold"))
         sty.configure(self.new_style(self.tk_button_set_scan_time),font=("微软雅黑",-18,"bold"))
         sty.configure(self.new_style(self.tk_label_current_operation),font=("微软雅黑",-18))
@@ -873,6 +907,8 @@ class TabGUI(Frame):
         create_tooltip(self.tk_button_select_photo_button, "截图并且将框选地址填入")
         create_tooltip(self.tk_select_box_photo_address, "当前地址信息")
         create_tooltip(self.tk_button_select_photo_save, "记录下当前地址信息")
+        create_tooltip(self.tk_label_photo_if_label, "设置执行策略,满足一个或者全部则执行操作")
+        create_tooltip(self.tk_label_process_label, "选择一个窗口,只有这个窗口在最前方时才会执行操作")
 
         create_tooltip(self.tk_button_operation_change_button, "修改对应行的操作内容")
         create_tooltip(self.tk_button_operation_delete_button, "删除对应行的操作内容")
