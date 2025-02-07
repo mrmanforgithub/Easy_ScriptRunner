@@ -43,26 +43,25 @@ class TabController:
         self.execution_method = "script_done"  #执行判断方式
         self.previous_scan_result = None
 
-        self.photo_if = "all"  #图片策略
+        self.photo_if = "all"  #满足策略
 
         self.process_name = None  #选择窗口进程名
 
         self.random_offset = 0  #随机偏移量
 
-        self.default_check = "弱相似"
+        self.default_check = "弱相似"  #相似策略
 
         self.file_path = "setting_json/operation_cache.json"  # 缓存文件,临时记录操作数据,关闭后清空
         self.photo_path = "setting_json/photo_cache.json"  # 缓存文件,临时记录图片数据,关闭后清空
         self.default_file_path = "setting_json/default_operation.json"   # 默认文件,记录开启时导入的操作内容
         self.default_photo_path = "setting_json/default_photo.json"    # 默认文件,记录开启时导入的图片内容
-        self.key_setting_path = "setting_json/key_setting.json"
+        self.key_setting_path = "setting_json/key_setting.json"  # 默认文件,记录快捷键的内容
         self.window = None
-        # self.windowsfocus()
 
         self.operations = self.load_operations(self.default_file_path)
         if not self.operations:
             self.add_default_operations()
-        self.max_loc = None
+
         # 图片截取目录
         self.image_path = None
 
@@ -72,16 +71,12 @@ class TabController:
         self.end_x = None
 
         # 参数的初始化
-        self.max_loops = None  # 扫描数量
+        self.max_loops = None  # 扫描最大数量
 
         self.scanning = False  # 是否扫描
 
-        self.manual_selection_coordinates = None  # 框选的扫描
-
-        self.selection1_address = [0, 0, 0, 0]  # 四个不同的扫描地址
-        self.selection2_address = [0, 0, 0, 0]
-        self.selection3_address = [0, 0, 0, 0]
-        self.selection4_address = [0, 0, 0, 0]
+        self.selection_address = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]] # 四个不同的扫描地址
+        self.max_loc = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]  # 四个不同的扫描成功地址
 
         self.result_check = ["是", "是", "是", "是"]  # 与或非的检查单,全为是则通过检查
         self.result_found = False
@@ -118,15 +113,9 @@ class TabController:
             self.result_check = ["是", "是", "是", "是"]
         elif self.photo_if == "one":
             self.result_check = ["否", "否", "否", "否"]
-        photo1_address = self.tab.tk_select_box_photo1_scan_box.get()
-        photo2_address = self.tab.tk_select_box_photo2_scan_box.get()
-        photo3_address = self.tab.tk_select_box_photo3_scan_box.get()
-        photo4_address = self.tab.tk_select_box_photo4_scan_box.get()
 
-        photo1_image_path = self.tab.tk_input_photo1_text.get()
-        photo2_image_path = self.tab.tk_input_photo2_text.get()
-        photo3_image_path = self.tab.tk_input_photo3_text.get()
-        photo4_image_path = self.tab.tk_input_photo4_text.get()
+        photo_address=[[],[],[],[]]
+        photo_image_path=['','','','']
 
         for future in list(self.scan_futures):
             if future.done():
@@ -143,39 +132,28 @@ class TabController:
 
         self.tab.tk_label_scanning_state_label.config(text="扫描中")
 
-        if photo1_image_path.strip():
-            self.result_check[0] = "否"
-            target_image1 = self.load_target_image(photo1_image_path,0)
-            future = self.scan_pool.submit(self.scan_loop, target_image1, photo1_address, 0, max_loops)
-            self.scan_futures.add(future)
-        if photo2_image_path.strip():
-            self.result_check[1] = "否"
-            target_image2 = self.load_target_image(photo2_image_path,1)
-            future = self.scan_pool.submit(self.scan_loop, target_image2, photo2_address, 1, max_loops)
-            self.scan_futures.add(future)
-        if photo3_image_path.strip():
-            self.result_check[2] = "否"
-            target_image3 = self.load_target_image(photo3_image_path,2)
-            future = self.scan_pool.submit(self.scan_loop, target_image3, photo3_address, 2, max_loops)
-            self.scan_futures.add(future)
-        if photo4_image_path.strip():
-            self.result_check[3] = "否"
-            target_image4 = self.load_target_image(photo4_image_path,3)
-            future = self.scan_pool.submit(self.scan_loop, target_image4, photo4_address, 3, max_loops)
-            self.scan_futures.add(future)
+        for i in range(4):
+            photo_address[i]=self.tab.photo_scan_box[i].get()
+            photo_image_path[i]=self.tab.photo_input[i].get()
+            if photo_image_path[i].strip():
+                self.result_check[i] = "否"
+                target_image = self.load_target_image(photo_image_path[i],0)
+                future = self.scan_pool.submit(self.scan_loop, target_image, photo_address[i], i, max_loops)
+                self.scan_futures.add(future)
         self.save_photos()
 
         #停止扫描
     #停止扫描
     def stop_scanning(self):
         # 停止扫描
-        self.scanning = False
+        self.scanning = False  #扫描标签归零
         self.result_found = False
-        self.tab.tk_label_scanning_state_label.config(background="#6c757d")
-        self.time_count = 0
-        self.scan_count = 0
-        self.execution_count = 0
-        for future in list(self.scan_futures):
+        self.tab.tk_label_scanning_state_label.config(background="#6c757d") #变为灰色
+        self.time_count = 0  #运行时间清空
+        self.scan_count = 0  #扫描次数清空
+        self.execution_count = 0 #执行次数清空
+        self.max_loc = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]] #识别成功地址清空
+        for future in list(self.scan_futures):  #从线程池子移除所有的扫描线程
             if not future.done():
                 future.cancel()
                 self.scan_futures.remove(future)
@@ -195,7 +173,6 @@ class TabController:
 
     # 修改操作
     def operation_change(self, evt):
-        ("修改操作列表")
         selected_item = self.tab.tk_table_operation_box.selection()
         if selected_item:
             selected_index = self.tab.tk_table_operation_box.index(selected_item[0])
@@ -232,8 +209,6 @@ class TabController:
             self.add_drag_operation_window(self.operation_position)
         elif self.operation_content == "滚轮操作":
             self.add_scroll_operation_window(self.operation_position)
-        elif self.operation_content == "自动寻路":
-            self.add_pathfinding_operation_window(self.operation_position)
         elif self.operation_content == "开启扫描":
             self.add_start_operation_window(self.operation_position)
         elif self.operation_content == "关闭扫描":
@@ -379,6 +354,8 @@ class TabController:
         """加载 OCR 模型"""
         if not hasattr(self, 'ocr') or not self.ocr:
             self.load_ocr()
+        else:
+            return
 
     # 确认地址选择后显示出来
     def confirm_address_selection(self, evt):
@@ -397,96 +374,41 @@ class TabController:
             target_image_path_str = filedialog.askopenfilename(title="Select file",
                                                                 filetypes=(
                                                                     ("jpeg files", "*.jpg"), ("all files", "*.*")))
-        if text_box_number == 1:
-            self.tab.tk_input_photo1_text.delete(0, tk.END)
-            self.tab.tk_input_photo1_text.insert(0, target_image_path_str)
-        elif text_box_number == 2:
-            self.tab.tk_input_photo2_text.delete(0, tk.END)
-            self.tab.tk_input_photo2_text.insert(0, target_image_path_str)
-        elif text_box_number == 3:
-            self.tab.tk_input_photo3_text.delete(0, tk.END)
-            self.tab.tk_input_photo3_text.insert(0, target_image_path_str)
-        elif text_box_number == 4:
-            self.tab.tk_input_photo4_text.delete(0, tk.END)
-            self.tab.tk_input_photo4_text.insert(0, target_image_path_str)
+        self.tab.photo_input[text_box_number-1].delete(0, tk.END)
+        self.tab.photo_input[text_box_number-1].insert(0, target_image_path_str)
         self.save_photos()
 
     # 选择的图片地址显示出来
     def select_photo_show(self):
         address_select = self.tab.tk_select_box_photo_address.get()
-        if address_select == "地址1":
-            if self.selection1_address is not None:
-                start_x, start_y, end_x, end_y = self.selection1_address
-                self.tab.tk_label_photo_start_label.config(text=f"({start_x},{start_y})")
-                self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
-        elif address_select == "地址2":
-            if self.selection2_address is not None:
-                start_x, start_y, end_x, end_y = self.selection2_address
-                self.tab.tk_label_photo_start_label.config(text=f"({start_x},{start_y})")
-                self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
-        elif address_select == "地址3":
-            if self.selection3_address is not None:
-                start_x, start_y, end_x, end_y = self.selection3_address
-                self.tab.tk_label_photo_start_label.config(text=f"({start_x},{start_y})")
-                self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
-        elif address_select == "地址4":
-            if self.selection4_address is not None:
-                start_x, start_y, end_x, end_y = self.selection4_address
-                self.tab.tk_label_photo_start_label.config(text=f"({start_x},{start_y})")
-                self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
+        address_index = int(address_select[-1]) - 1
+        if 0 <= address_index < len(self.selection_address) and self.selection_address[address_index] is not None:
+            start_x, start_y, end_x, end_y = self.selection_address[address_index]
+            self.tab.tk_label_photo_start_label.config(text=f"({start_x},{start_y})")
+            self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
 
     # 更改地址参数的选项,让地址(x1,y1),(x2,y2)符合状态
     def address_change(self,evt, address_select=None,change_type="del"):
         if address_select is None :
             address_select = self.tab.tk_select_box_photo_address.get()
+            address_index = int(address_select[-1]) - 1
             start_address = self.tab.tk_label_photo_start_label.cget("text")
             end_address = self.tab.tk_label_photo_end_label.cget("text")
             if change_type == "del": #不给选择地址,选择删除模式
                 self.tab.tk_label_photo_start_label.config(text="(0,0)")
                 self.tab.tk_label_photo_end_label.config(text="(0,0)")
-                if address_select == "地址1":
-                    self.selection1_address = [0, 0, 0, 0]
-                    return
-                elif address_select == "地址2":
-                    self.selection2_address = [0, 0, 0, 0]
-                    return
-                elif address_select == "地址3":
-                    self.selection3_address = [0, 0, 0, 0]
-                    return
-                elif address_select == "地址4":
-                    self.selection4_address = [0, 0, 0, 0]
-                    return
+                self.selection_address[address_index]=[0,0,0,0]
             elif change_type == "save": #不给选择地址,选择保存模式
-                if address_select == "地址1":
-                    start_x, start_y = map(int, start_address.strip('()').split(','))
-                    end_x, end_y = map(int, end_address.strip('()').split(','))
-                    self.selection1_address = [start_x, start_y, end_x, end_y]
-                    return self.selection1_address
-                elif address_select == "地址2":
-                    start_x, start_y = map(int, start_address.strip('()').split(','))
-                    end_x, end_y = map(int, end_address.strip('()').split(','))
-                    self.selection2_address = [start_x, start_y, end_x, end_y]
-                    return self.selection2_address
-                elif address_select == "地址3":
-                    start_x, start_y = map(int, start_address.strip('()').split(','))
-                    end_x, end_y = map(int, end_address.strip('()').split(','))
-                    self.selection3_address = [start_x, start_y, end_x, end_y]
-                    return self.selection3_address
-                elif address_select == "地址4":
-                    start_x, start_y = map(int, start_address.strip('()').split(','))
-                    end_x, end_y = map(int, end_address.strip('()').split(','))
-                    self.selection4_address = [start_x, start_y, end_x, end_y]
-                    return self.selection4_address
+                start_x, start_y = map(int, start_address.strip('()').split(','))
+                end_x, end_y = map(int, end_address.strip('()').split(','))
+                # 更新 selection_address 中对应位置的值
+                self.selection_address[address_index] = [start_x, start_y, end_x, end_y]
+                # 返回更新后的地址
+                return self.selection_address[address_index]
         elif address_select is not None:
+            address_index = int(address_select[-1]) - 1
             if change_type is None: #给选择地址,选择读取模式
-                if address_select == "地址1":
-                    return self.selection1_address
-                elif address_select == "地址2":
-                    return self.selection2_address
-                elif address_select == "地址3":
-                    return self.selection3_address
-                elif address_select == "地址4":
-                    return self.selection4_address
+                return self.selection_address[address_index]
         self.save_photos()
 
     # 根据位置来读取照片
@@ -503,7 +425,7 @@ class TabController:
         return target_image
 
     #比对图片相似度,确认是否是符合要求的
-    def compare_images_with_template_matching(self, image1, image2, address_content):
+    def compare_images_with_template_matching(self, image1, image2, address_content,chosen_index):
         # 比较图片的算法
         # 将图像转换为灰度图
         try:
@@ -527,10 +449,47 @@ class TabController:
             dx, dy = address_content[0], address_content[1]  # 计算相对偏移量
             top_left = (max_loc[0] + dx, max_loc[1] + dy)  # 最佳匹配位置的左上角坐标
             bottom_right = (top_left[0] + w, top_left[1] + h)  # 最佳匹配位置的右下角坐标
-            self.max_loc = (top_left, bottom_right)
+            self.max_loc[chosen_index] = (top_left, bottom_right)
             return True  # 图片相似
         else:
             return False  # 图片不相似
+
+    def compare_text_with_ocr(self,screenshot,text, address_content,chosen_index):
+        byte_io = io.BytesIO()
+        screenshot.save(byte_io, format='PNG')
+        image_bytes = byte_io.getvalue()
+        self.start_ocr_loading()  # 如果OCR模型还未加载,启动加载
+        ocr_result = None
+        # 设置相似度阈值
+        similarity_threshold = self.check_similar     # 通过调整阈值来判断相似度,阈值默认0.75
+        dx, dy = address_content[0], address_content[1]  # 计算相对偏移量
+        try:
+            ocr_result = self.ocr.runBytes(image_bytes)
+        except Exception as e:
+            ocr_result = None
+
+        if ocr_result and isinstance(ocr_result, dict) and 'data' in ocr_result and isinstance(ocr_result['data'], list):
+            # 获取识别的文字
+            for item in ocr_result['data']:
+                score = item['score']
+                box = item['box']
+                recognized_text = item['text']
+                adjusted_box = [[x + dx, y + dy] for x, y in box]
+                if text.strip() in recognized_text.strip():
+                    if score >=similarity_threshold:  # 判断识别文字是否包含目标文字并且可信度够高
+                        pt1 = tuple(adjusted_box[0])  # 左上角坐标
+                        pt2 = tuple(adjusted_box[2])  # 右下角坐标
+                        self.max_loc[chosen_index]=(pt1,pt2)  #将识别到的坐标保存至识别成功坐标组
+                        self.tab.tk_label_scanning_state_label.config(text="文字识别成功", background="#007bff")
+                        return True
+                    else:
+                        self.tab.tk_label_scanning_state_label.config(text="相似度不够", background="#FFB84D")
+                        return False
+            self.tab.tk_label_scanning_state_label.config(text="无目标文字", background="#007bff")
+            return False
+        else:
+            self.tab.tk_label_scanning_state_label.config(text="未寻找到文字", background="#007bff")
+            return False
 
     #扫描循环(此处是进行扫描的核心代码)
     def scan_loop(self, target_image, photo_address, chosen_index, max_loops):
@@ -552,12 +511,9 @@ class TabController:
             x1, y1, x2, y2 = address_content
             screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2))
             screen_region = np.array(screenshot)
-            byte_io = io.BytesIO()
-            screenshot.save(byte_io, format='PNG')
-            image_bytes = byte_io.getvalue()
             # 判断target_image类型,如果是图片(numpy.ndarray)则进行图像处理,否则进行OCR识别
             if isinstance(target_image, np.ndarray):
-                result = self.compare_images_with_template_matching(screen_region, target_image, address_content)
+                result = self.compare_images_with_template_matching(screen_region, target_image, address_content,chosen_index)
                 if result:
                     self.result_found = True
                     self.tab.tk_label_scanning_state_label.config(text="扫描成功", background="#007bff")
@@ -565,31 +521,16 @@ class TabController:
                 else:
                     self.result_found = False
                     self.result_check[chosen_index] = "否"
-                    self.tab.tk_label_scanning_state_label, "未扫描到结果"
+                    self.tab.tk_label_scanning_state_label.config(text="未扫描到结果", background="#007bff")
             else:
-                self.start_ocr_loading()  # 如果OCR模型还未加载,启动加载
-                ocr_result = None
-                try:
-                    ocr_result = self.ocr.runBytes(image_bytes)
-                except Exception as e:
-                    ocr_result = None
-
-                if ocr_result and isinstance(ocr_result, dict) and 'data' in ocr_result and isinstance(ocr_result['data'], list):
-                    # 获取识别的文字
-                    recognized_text = "".join([item['text'] for item in ocr_result['data']])
-                    expected_text = target_image  # 你的目标文字(根据实际需求修改)
-                    if expected_text.strip() in recognized_text.strip():  # 判断识别文字是否包含目标文字
-                        self.result_found = True
-                        self.tab.tk_label_scanning_state_label.config(text="文字识别成功", background="#007bff")
-                        self.result_check[chosen_index] = "是"
-                    else:
-                        self.result_found = False
-                        self.result_check[chosen_index] = "否"
-                        self.tab.tk_label_scanning_state_label, "未识别到正确文字"
+                ocr_result = self.compare_text_with_ocr(screenshot,target_image,address_content,chosen_index)
+                if ocr_result:  # 判断识别文字是否包含目标文字
+                    self.result_found = True
+                    self.result_check[chosen_index] = "是"
                 else:
                     self.result_found = False
                     self.result_check[chosen_index] = "否"
-                    self.tab.tk_label_scanning_state_label, "未识别到文字"
+
 
             if self.photo_if == "all":
                 current_scan_result = self.previous_scan_result
@@ -661,39 +602,28 @@ class TabController:
             self.manual_select_mode = False  # 退出手动框选模式
             self.tab.tk_label_photo_start_label.config(text=f"({self.start_x},{self.start_y})")
             self.tab.tk_label_photo_end_label.config(text=f"({self.end_x},{self.end_y})")
-            self.manual_selection_coordinates = (
-                self.start_x, self.start_y, self.end_x, self.end_y)  # Store the coordinates
-                    # 检查并自动将图片地址移动到 selection1_address ~ selection4_address
-            if self.selection1_address == [0, 0, 0, 0]:
-                self.selection1_address = [self.start_x, self.start_y, self.end_x, self.end_y]
-                self.tab.tk_select_box_photo_address.set("地址1")  # 更新地址显示
-                self.address_change(evt,change_type="save")
-            elif self.selection2_address == [0, 0, 0, 0]:
-                self.selection2_address = [self.start_x, self.start_y, self.end_x, self.end_y]
-                self.tab.tk_select_box_photo_address.set("地址2")  # 更新地址显示
-                self.address_change(evt,change_type="save")
-            elif self.selection3_address == [0, 0, 0, 0]:
-                self.selection3_address = [self.start_x, self.start_y, self.end_x, self.end_y]
-                self.tab.tk_select_box_photo_address.set("地址3")  # 更新地址显示
-                self.address_change(evt,change_type="save")
-            elif self.selection4_address == [0, 0, 0, 0]:
-                self.selection4_address = [self.start_x, self.start_y, self.end_x, self.end_y]
-                self.tab.tk_select_box_photo_address.set("地址4")  # 更新地址显示
-                self.address_change(evt,change_type="save")
+            # 检查并自动将图片地址保存到 selection_address
+            for address_index in range(4):
+                if self.selection_address[address_index] == [0, 0, 0, 0]:
+                    # 更新对应的地址
+                    self.selection_address[address_index] = [self.start_x, self.start_y, self.end_x, self.end_y]
+                    # 更新地址显示
+                    self.tab.tk_select_box_photo_address.set(f"地址{address_index + 1}")
+                    # 调用保存地址变化的方法
+                    self.address_change(evt, change_type="save")
+                    break  # 退出循环，因为只需要处理第一个符合条件的地址
             self.manual_selection_window.destroy()
             if grab_photo:  # 如果需要截图
                 x1, y1 = min(self.start_x, self.end_x), min(self.start_y, self.end_y)
                 x2, y2 = max(self.start_x, self.end_x), max(self.start_y, self.end_y)
-                self.manual_selection_coordinates = (
-                    self.start_x - 5, self.start_y - 5, self.end_x + 5, self.end_y + 5)
                 # 在对应位置产生截图
                 screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2))
                 # 要求用户选择路径保存截图
                 file_path = filedialog.asksaveasfilename(defaultextension=".jpg", filetypes=[("JPEG files", "*.jpg")])
                 if file_path:  # 如果用户选择了路径
                     screenshot.save(file_path)  # 保存截图
-                    self.tab.tk_input_photo1_text.delete(0, tk.END)
-                    self.tab.tk_input_photo1_text.insert(0, file_path)
+                    self.tab.photo_input[0].delete(0, tk.END)
+                    self.tab.photo_input[0].insert(0, file_path)
 
             self.ui.deiconify()  # 恢复最小化的之前的界面
             self.save_photos()
@@ -891,11 +821,11 @@ class TabController:
         drag_window.focus_set()
 
     # 添加寻路操作窗口
-    def add_pathfinding_operation_window(self, position):
+    def add_pathfinding_operation_window(self, callback):
         # 打开自动寻路窗口并且记录寻路位置偏差
         pathfinding_window = tk.Toplevel(self.ui)
         pathfinding_window.title("自动寻路")
-        pathfinding_window.geometry("300x200")
+        pathfinding_window.geometry("300x290")  # 增加一些高度以适应新控件
         pathfinding_window.lift()
         pathfinding_window.focus_set()
 
@@ -905,28 +835,40 @@ class TabController:
             else:
                 return False
 
-        def handle_confirm_click(x_entry, y_entry):
+        def handle_confirm_click(x_entry, y_entry, combobox):
             if validate_input(x_entry.get()) and validate_input(y_entry.get()):
                 x_value = int(x_entry.get())
                 y_value = int(y_entry.get())
-                # 将寻路操作加入operations
-                self.operations.insert(position, f"寻路:{(x_value, y_value)}")
-                self.save_operations()
-                self.populate_operation_list()
+                selected_label = combobox.get()  # 获取选中的标签
+                selected_index = int(selected_label[-1]) - 1
+                result = f"({selected_index}, {x_value}, {y_value})"
                 pathfinding_window.destroy()
+                callback(result)
 
-        x_label = tk.Label(pathfinding_window, text="x(正值为＋):")
+        # 添加 Combobox 控件
+        label_options = ["图文1", "图文2", "图文3", "图文4"]
+        combobox_label = tk.Label(pathfinding_window, text="选择起始点:")
+        combobox_label.pack(pady=5)
+        combobox = ttk.Combobox(pathfinding_window, values=label_options)
+        combobox.pack(pady=5)
+        combobox.set(label_options[0])  # 默认选中第一个标签
+
+        x_label = tk.Label(pathfinding_window, text="填入变动值"+"\nx(正值为＋):")
         x_label.pack(pady=5)
         x_entry = tk.Entry(pathfinding_window)
+        x_entry.insert(0, "0")  # 设置默认值为 0
         x_entry.pack(pady=5)
 
         y_label = tk.Label(pathfinding_window, text="y(正值为＋):")
         y_label.pack(pady=5)
         y_entry = tk.Entry(pathfinding_window)
+        y_entry.insert(0, "0")
         y_entry.pack(pady=5)
 
+
+
         pathfinding_button = tk.Button(pathfinding_window, text="确认",
-                                        command=lambda: handle_confirm_click(x_entry, y_entry))
+                                        command=lambda: handle_confirm_click(x_entry, y_entry, combobox))
         pathfinding_button.pack(pady=5)
 
     # 添加等待操作窗口
@@ -1166,20 +1108,13 @@ class TabController:
             press_time_entry.insert(0, "1")  # 默认1秒
             press_time_entry.pack(pady=5)
 
-            # 清空和确认按钮
-            def clear_input():
-                click_position_var.set("")  # 清空点击位置
-                press_time_entry.delete(0, tk.END)
-                press_time_entry.insert(0, "1")
-                operation_var.set("single")
-
             def is_valid_operation_format(operation_text):
                 """
                 验证用户输入的操作格式是否符合规定的格式
                 """
                 # 定义正则表达式
                 # 格式：左键-单击-(x,y) 或 左键-长按【时间】秒-(x,y)
-                valid_format = re.compile(r"(左键|右键|中键)-(单击|双击|长按【\d+】秒)-\(\d+, \d+\)")
+                valid_format = re.compile(r"(左键|右键|中键)-(单击|双击|长按【\d+】秒)-(\(\d+, \d+\)|\(\d+, \d+, \d+\))")
                 return valid_format.match(operation_text)
 
             def confirm_input():
@@ -1246,12 +1181,31 @@ class TabController:
             confirm_button = tk.Button(button_frame, text="确认", command=confirm_input)
             confirm_button.pack(side=tk.LEFT, padx=5)
 
-            clear_button = tk.Button(button_frame, text="清空", command=clear_input)
-            clear_button.pack(side=tk.LEFT, padx=5)
-
             # 改为录制点击位置
-            record_button = tk.Button(button_frame, text="录制点击位置", command=record_click)
+            record_button = tk.Button(button_frame, text="录制点击", command=record_click)
             record_button.pack(side=tk.LEFT, padx=5)
+
+            # 添加不固定位置按钮
+            def add_pathfinding_operation():
+                # 启动 add_pathfinding_operation_window 函数
+                self.add_pathfinding_operation_window(on_pathfinding_result)
+
+            def on_pathfinding_result(pathfinding_result):
+                operation = operation_var.get()
+                click_position = f"左键"          # 根据操作类型修改点击描述
+                if operation == "single":
+                    click_position += f"-单击"
+                elif operation == "double":
+                    click_position += f"-双击"
+                elif operation == "long_press":
+                    press_time = press_time_entry.get()  # 获取长按时间
+                    click_position += f"-长按【{press_time}】秒"
+                click_position += f"-{pathfinding_result}"
+                click_position_var.set(click_position)  # 更新点击位置字段
+
+            # 添加寻路按钮
+            pathfinding_button = tk.Button(button_frame, text="匹配区域", command=add_pathfinding_operation)
+            pathfinding_button.pack(side=tk.LEFT, padx=5)
 
             # 返回窗口和相关的组件
             return mouse_window, click_position_var, click_position_entry
@@ -1268,16 +1222,18 @@ class TabController:
                 wait_time = int(operation.split(":")[1].strip("ms"))
                 time.sleep(wait_time / 1000)  # Convert milliseconds to seconds and wait
             elif operation.startswith("寻路"):
-                pathfinding_loc = (operation.split(":")[1])
-                path = eval(pathfinding_loc)
-                max_loc = self.max_loc
-                center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
-                center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
-                # offset_x = random.randint(-1, 1)
-                # offset_y = random.randint(-1, 1)
-                offset_x = 0
-                offset_y = 0
-                pyautogui.click(center_x + int(path[0]) + offset_x, center_y + int(path[1]) + offset_y)
+                pathfinding = operation.split(":")[1]
+                selected_index,loc = pathfinding.split("-")
+                path = eval(loc)
+                max_loc = self.max_loc[int(selected_index)]  #选择对应识别位置的中心
+                if max_loc is not [0,0,0,0]: #如果不为空,默认是空的,赋值后不为空
+                    center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
+                    center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
+                    # offset_x = random.randint(-1, 1)
+                    # offset_y = random.randint(-1, 1)
+                    offset_x = 0
+                    offset_y = 0
+                    pyautogui.click(center_x + int(path[0]) + offset_x, center_y + int(path[1]) + offset_y)
             elif operation.startswith("滚轮"):
                 scroll_time = int(operation.split(":")[1].strip("步"))
                 pyautogui.scroll(scroll_time)  # 执行滚轮
@@ -1365,9 +1321,17 @@ class TabController:
                         else:
                             pyautogui.press(key_map.get(key_info.strip("[]"), key_info.strip("[]")))  # 单个按键
             elif operation.startswith("鼠标操作"):
-                operation_desc = operation.split(":")[1]  # 获取 "左键-长按【10】秒-(1517,269)"
-                # 提取按钮类型和操作部分
-                click_type, action = operation_desc.split("-")[:2]  # 分割得到 "左键" 和 "长按【10】秒"
+                operation_desc = operation.split(":")[1]  # 获取 "左键-单击-(150,200)" 或 "左键-单击-(0,150,200)"
+                # 判断是否为扫描操作（根据坐标的数字个数判断）
+                parts = operation_desc.split("-")
+                click_type = parts[0]  # "左键"
+                action = parts[1]  # "单击" 或 "长按【10】秒"
+                offset_x = 0
+                offset_y = 0
+                center_x = 0
+                center_y = 0
+                x = 0
+                y = 0
                 # 判断是否为长按,提取时间信息
                 if "长按" in action:
                     press_time = action.split("【")[1].split("】")[0]  # 获取按压时间(例如 10)
@@ -1380,40 +1344,47 @@ class TabController:
                     action_type = "single"
                 # 提取坐标部分
                 position = operation_desc.split("-")[-1].strip("()")
-                x, y = map(int, position.split(","))  # 获取坐标
-                # 偏移量(如果需要)
-                offset_x = 0
-                offset_y = 0
-                # offset_x = random.randint(-1, 1)
-                # offset_y = random.randint(-1, 1)
-                # 执行相应的鼠标操作
+                position_values = tuple(map(int, position.split(",")))  # 转换成元组 (150, 200) 或 (0, 150, 200)
+                if len(position_values) == 3:
+                    # 说明是扫描操作，第一位为扫描区域标识
+                    scan_region_index = position_values[0]  # 例如 0 (表示扫描区域)
+                    x, y = position_values[1], position_values[2]  # 扫描区域的坐标
+                    # 这里可以进行扫描区域的相关操作
+                    max_loc = self.max_loc[scan_region_index]  # 选择对应识别位置的中心
+                    if max_loc != [0, 0, 0, 0]:  # 如果不为空
+                        center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
+                        center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
+                else:
+                    # 普通鼠标操作，坐标只有两个数字
+                    x, y = position_values
+                # 执行鼠标操作
                 if click_type == "左键":
                     if action_type == "single":
-                        pyautogui.click(x + offset_x, y + offset_y)
+                        pyautogui.click(center_x + x + offset_x, center_y + y + offset_y)
                     elif action_type == "double":
-                        pyautogui.doubleClick(x + offset_x, y + offset_y, interval=0.1)
+                        pyautogui.doubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
                     elif action_type == "long_press":
-                        pyautogui.mouseDown(x + offset_x, y + offset_y)
+                        pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y)
                         pyautogui.sleep(float(press_time))  # 按压一段时间
-                        pyautogui.mouseUp(x + offset_x, y + offset_y)
+                        pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y)
                 elif click_type == "右键":
                     if action_type == "single":
-                        pyautogui.rightClick(x + offset_x, y + offset_y)
+                        pyautogui.rightClick(center_x + x + offset_x, center_y + y + offset_y)
                     elif action_type == "double":
-                        pyautogui.rightDoubleClick(x + offset_x, y + offset_y, interval=0.1)
+                        pyautogui.rightDoubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
                     elif action_type == "long_press":
-                        pyautogui.mouseDown(x + offset_x, y + offset_y, button='right')
+                        pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y, button='right')
                         pyautogui.sleep(float(press_time))  # 按压一段时间
-                        pyautogui.mouseUp(x + offset_x, y + offset_y, button='right')
+                        pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y, button='right')
                 elif click_type == "中键":
                     if action_type == "single":
-                        pyautogui.middleClick(x + offset_x, y + offset_y)
+                        pyautogui.middleClick(center_x + x + offset_x, center_y + y + offset_y)
                     elif action_type == "double":
-                        pyautogui.middleDoubleClick(x + offset_x, y + offset_y, interval=0.1)
+                        pyautogui.middleDoubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
                     elif action_type == "long_press":
-                        pyautogui.mouseDown(x + offset_x, y + offset_y, button='middle')
+                        pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y, button='middle')
                         pyautogui.sleep(float(press_time))  # 按压一段时间
-                        pyautogui.mouseUp(x + offset_x, y + offset_y, button='middle')
+                        pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y, button='middle')
             elif operation.startswith("开启"):
                 chosen_index = int(operation.split("号扫描")[0].strip("开启："))
                 loop_count_string = operation.split("号扫描")[1].split("次")[0].strip()
@@ -1537,22 +1508,13 @@ class TabController:
 
     # 保存图片信息到file_path(写入cache)的位置
     def save_photos(self, default_photo=None , getdata=None):
-        data = {
-                "地址1": self.selection1_address,
-                "地址2": self.selection2_address,
-                "地址3": self.selection3_address,
-                "地址4": self.selection4_address,
-                "图片1的位置": self.tab.tk_input_photo1_text.get(),
-                "图片2的位置": self.tab.tk_input_photo2_text.get(),
-                "图片3的位置": self.tab.tk_input_photo3_text.get(),
-                "图片4的位置": self.tab.tk_input_photo4_text.get(),
-                "图片1的地址": self.tab.tk_select_box_photo1_scan_box.get(),
-                "图片2的地址": self.tab.tk_select_box_photo2_scan_box.get(),
-                "图片3的地址": self.tab.tk_select_box_photo3_scan_box.get(),
-                "图片4的地址": self.tab.tk_select_box_photo4_scan_box.get(),
-                "满足方式": self.tab.photo_if_var.get(),
-                "窗口选择": self.process_name
-                }
+        data = {}
+        for i in range(4):
+            data[f"地址{i+1}"] = self.selection_address[i]
+            data[f"图片{i+1}的位置"] = self.tab.photo_input[i].get()
+            data[f"图片{i+1}的地址"] = self.tab.photo_scan_box[i].get()
+        data["满足方式"] = self.tab.photo_if_var.get()
+        data["窗口选择"] = self.process_name
         if default_photo is None:
             write_path = self.photo_path
         else:
@@ -1624,24 +1586,11 @@ class TabController:
             else:
                 data = photo_path     # 如果是自动读取,那么photo_path作为data读取
             # 对读取内容缺失的调整
-            self.selection1_address = data.get("地址1", [0, 0, 0, 0])
-            self.selection2_address = data.get("地址2", [0, 0, 0, 0])
-            self.selection3_address = data.get("地址3", [0, 0, 0, 0])
-            self.selection4_address = data.get("地址4", [0, 0, 0, 0])
-
-            self.tab.tk_input_photo1_text.delete(0, "end")
-            self.tab.tk_input_photo1_text.insert(0, data.get("图片1的位置", ""))
-            self.tab.tk_input_photo2_text.delete(0, "end")
-            self.tab.tk_input_photo2_text.insert(0, data.get("图片2的位置", ""))
-            self.tab.tk_input_photo3_text.delete(0, "end")
-            self.tab.tk_input_photo3_text.insert(0, data.get("图片3的位置", ""))
-            self.tab.tk_input_photo4_text.delete(0, "end")
-            self.tab.tk_input_photo4_text.insert(0, data.get("图片4的位置", ""))
-
-            self.tab.tk_select_box_photo1_scan_box.set(data.get("图片1的地址", "地址1"))
-            self.tab.tk_select_box_photo2_scan_box.set(data.get("图片2的地址", "地址1"))
-            self.tab.tk_select_box_photo3_scan_box.set(data.get("图片3的地址", "地址1"))
-            self.tab.tk_select_box_photo4_scan_box.set(data.get("图片4的地址", "地址1"))
+            for i in range(4):
+                self.selection_address[i] = data.get(f"地址{i+1}", [0, 0, 0, 0])
+                self.tab.photo_input[i].delete(0, "end")
+                self.tab.photo_input[i].insert(0, data.get(f"图片{i+1}的位置", ""))
+                self.tab.photo_scan_box[i].set(data.get(f"图片{i+1}的地址", "地址1"))
             self.tab.photo_if_var.set(data.get("满足方式", "all"))
             self.tab.tk_label_process_label.config(text=data.get("窗口选择", "窗口选择"+"\n暂无"))
             self.process_name = data.get("窗口选择", None)
@@ -1650,23 +1599,11 @@ class TabController:
 
         except (IOError, json.JSONDecodeError, KeyError) as e:
             # 如果json内部键值错误
-            self.selection1_address = [0, 0, 0, 0]
-            self.selection2_address = [0, 0, 0, 0]
-            self.selection3_address = [0, 0, 0, 0]
-            self.selection4_address = [0, 0, 0, 0]
-            self.tab.tk_input_photo1_text.delete(0, "end")
-            self.tab.tk_input_photo1_text.insert(0, "")
-            self.tab.tk_input_photo2_text.delete(0, "end")
-            self.tab.tk_input_photo2_text.insert(0, "")
-            self.tab.tk_input_photo3_text.delete(0, "end")
-            self.tab.tk_input_photo3_text.insert(0, "")
-            self.tab.tk_input_photo4_text.delete(0, "end")
-            self.tab.tk_input_photo4_text.insert(0, "")
-
-            self.tab.tk_select_box_photo1_scan_box.set("地址1")
-            self.tab.tk_select_box_photo2_scan_box.set("地址1")
-            self.tab.tk_select_box_photo3_scan_box.set("地址1")
-            self.tab.tk_select_box_photo4_scan_box.set("地址1")
+            for i in range(4):
+                self.selection_address[i] = data.get([0, 0, 0, 0])
+                self.tab.photo_input[i].delete(0, "end")
+                self.tab.photo_input[i].insert(0, "")
+                self.tab.photo_scan_box[i].set(data.get("地址1"))
             self.tab.photo_if_var.set("all")
             self.tab.tk_label_process_label.config(text="窗口选择"+"\n无")
 
@@ -1704,13 +1641,7 @@ class TabController:
                     json.dump(settings_data, f, indent=4, ensure_ascii=False)
                 default_photo_window.destroy()
             except Exception as e:
-                now = datetime.now()
-                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-                log_filename = f"backtrace_logs/{timestamp}"
-
-                with open(log_filename, "w") as file:
-                    file.write(f"Error occurred at {now}:\n")
-                    traceback.print_exc(file=file)  # 将异常信息写入文件
+                self.error_print(e)
 
         def load_settings():
             data = self.save_photos(default_photo=None,getdata="1")

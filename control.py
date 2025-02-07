@@ -73,25 +73,17 @@ class Controller:
                         "operation_name": operation_data
                     }
                 })
+            images = {}
+            for i in range(4):
+                images[f"地址{i+1}"] = self.tabs[tab_index].ctl.selection_address[i]
+                images[f"图片{i+1}的位置"] = self.tabs[tab_index].photo_input[i].get()
+                images[f"图片{i+1}的地址"] = self.tabs[tab_index].photo_scan_box[i].get()
+            images["满足方式"] = self.tabs[tab_index].photo_if_var.get()
+            images["窗口选择"] = self.tabs[tab_index].ctl.process_name
             page = {
                 "page_index": tab_index,
                 "operations": page_operations,
-                "images":
-                    {"地址1": self.tabs[tab_index].ctl.selection1_address,
-                    "地址2": self.tabs[tab_index].ctl.selection2_address,
-                    "地址3": self.tabs[tab_index].ctl.selection3_address,
-                    "地址4": self.tabs[tab_index].ctl.selection4_address,
-                    "图片1的位置": self.tabs[tab_index].tk_input_photo1_text.get(),
-                    "图片2的位置": self.tabs[tab_index].tk_input_photo2_text.get(),
-                    "图片3的位置": self.tabs[tab_index].tk_input_photo3_text.get(),
-                    "图片4的位置": self.tabs[tab_index].tk_input_photo4_text.get(),
-                    "图片1的地址": self.tabs[tab_index].tk_select_box_photo1_scan_box.get(),
-                    "图片2的地址": self.tabs[tab_index].tk_select_box_photo2_scan_box.get(),
-                    "图片3的地址": self.tabs[tab_index].tk_select_box_photo3_scan_box.get(),
-                    "图片4的地址": self.tabs[tab_index].tk_select_box_photo4_scan_box.get(),
-                    "满足方式": self.tabs[tab_index].photo_if_var.get(),
-                    "窗口选择": self.tabs[tab_index].ctl.process_name
-                    }
+                "images": images
             }
             scan_page[scan_name].append(page)
         data["pages"].append(scan_page)

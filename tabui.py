@@ -73,6 +73,18 @@ class TabGUI(Frame):
         self.tk_select_box_photo1_scan_box = self.__tk_select_box_photo1_scan_box(self.tk_frame_photo1_container)
 
 
+        #方便control用 for循环读取的集合体,那边用self.tab.photo_container[i]即可读取到对应的内容
+        self.photo_container =[self.tk_frame_photo1_container,self.tk_frame_photo2_container,self.tk_frame_photo3_container,self.tk_frame_photo4_container]
+
+        self.photo_label = [self.tk_label_photo1_label,self.tk_label_photo2_label,self.tk_label_photo3_label,self.tk_label_photo4_label]
+
+        self.photo_input = [self.tk_input_photo1_text,self.tk_input_photo2_text,self.tk_input_photo3_text,self.tk_input_photo4_text]
+
+        self.photo_browser_button = [self.tk_button_photo1_browser_button,self.tk_button_photo2_browser_button,self.tk_button_photo3_browser_button,self.tk_button_photo4_browser_button]
+
+        self.photo_scan_box = [self.tk_select_box_photo1_scan_box,self.tk_select_box_photo2_scan_box,self.tk_select_box_photo3_scan_box,self.tk_select_box_photo4_scan_box]
+
+
         self.photo_if_var = tk.StringVar(value="all")  # 默认选中 "全部满足"
         # 扫描策略的容器
         self.tk_frame_photo_other = self.__tk_frame_photo_other( self.tk_frame_photo_all_container)
@@ -164,7 +176,7 @@ class TabGUI(Frame):
         self.tk_button_set_default_photo = self.__tk_button_set_default_photo( self.tk_frame_scan_detail_container)
         # 设置默认操作
         self.tk_button_set_default_operation = self.__tk_button_set_default_operation( self.tk_frame_scan_detail_container)
-        # 设置默认快捷键
+        # 设置默认快捷键/其他
         self.tk_button_set_default_key = self.__tk_button_set_default_key( self.tk_frame_scan_detail_container)
         # 设置相似度
         self.tk_button_set_default_similar = self.__tk_button_set_default_similar( self.tk_frame_scan_detail_container)
@@ -540,7 +552,7 @@ class TabGUI(Frame):
 
     def __tk_select_box_operation_list(self, parent):
         cb = Combobox(parent, state="readonly", bootstyle="default")
-        cb['values'] = ("等待时间", "键盘操作", "鼠标操作","鼠标拖动", "滚轮操作", "自动寻路", "开启扫描", "关闭扫描")
+        cb['values'] = ("等待时间", "键盘操作", "鼠标操作","鼠标拖动", "滚轮操作", "开启扫描", "关闭扫描")
         cb.current(0)
         cb.place(x=140, y=220, width=140)
         return cb
@@ -634,16 +646,16 @@ class TabGUI(Frame):
         btn.place(x=6, y=335, width=565, height=55)
         return btn
     def __tk_button_set_default_photo(self,parent):
-        btn = Button(parent, text="设置默认图片", takefocus=False,bootstyle="dark")
+        btn = Button(parent, text="设置默认图片", takefocus=False,bootstyle="info")
         btn.place(x=6, y=275, width=150, height=50)
         return btn
     def __tk_button_set_default_operation(self,parent):
-        btn = Button(parent, text="设置默认事件", takefocus=False,bootstyle="dark")
-        btn.place(x=302, y=275, width=137, height=49)
+        btn = Button(parent, text="设置默认事件", takefocus=False,bootstyle="info")
+        btn.place(x=163, y=275, width=134, height=50)
         return btn
     def __tk_button_set_default_key(self,parent):
-        btn = Button(parent, text="设置快捷键", takefocus=False,bootstyle="default")
-        btn.place(x=163, y=275, width=134, height=50)
+        btn = Button(parent, text="设置其他", takefocus=False,bootstyle="default")
+        btn.place(x=302, y=275, width=137, height=49)
         return btn
     def __tk_button_set_scan_time(self,parent):
         btn = Button(parent, text="设置间隔", takefocus=False,bootstyle="default")
