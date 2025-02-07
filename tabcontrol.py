@@ -84,9 +84,7 @@ class TabController:
         self.selection4_address = [0, 0, 0, 0]
 
         self.result_check = ["是", "是", "是", "是"]  # 与或非的检查单,全为是则通过检查
-        self.blink = False
         self.result_found = False
-        self.scroll_offset = 0
 
         # 默认的扫描相似度阈值
         self.check_similar = 0.75
@@ -172,7 +170,6 @@ class TabController:
     def stop_scanning(self):
         # 停止扫描
         self.scanning = False
-        self.blink = False
         self.result_found = False
         self.tab.tk_label_scanning_state_label.config(background="#6c757d")
         self.time_count = 0
@@ -535,17 +532,6 @@ class TabController:
         else:
             return False  # 图片不相似
 
-    # 文字移动
-    def blink_text(self, label, text, delay=800):
-        if self.scanning and not self.result_found:  # 确保闪烁只在扫描时进行
-            label.config(background="#007bff")
-            full_text = text + "\u3000"
-            scroll_text = (full_text + full_text)[self.scroll_offset:self.scroll_offset + len(text)]
-            label.config(text=scroll_text)  # 更新Label内容
-            self.scroll_offset = (self.scroll_offset + 1) % len(full_text)  # 偏移量自增
-            self.ui.after(delay, lambda: self.blink_text(label, text, delay))
-            self.blink = True
-
     #扫描循环(此处是进行扫描的核心代码)
     def scan_loop(self, target_image, photo_address, chosen_index, max_loops):
         # 检查地址内容
@@ -561,7 +547,6 @@ class TabController:
             if active_window:
                 if self.process_name and self.process_name not in active_window.title:
                     self.tab.tk_label_scanning_state_label.config(text="选择窗口未置顶", background="#FFB84D")
-                    self.blink = False
                     self.ui.after(self.scan_interval, lambda: self.scan_loop(target_image, photo_address, chosen_index, max_loops))
                     return  # 不执行操作
             x1, y1, x2, y2 = address_content
@@ -576,14 +561,11 @@ class TabController:
                 if result:
                     self.result_found = True
                     self.tab.tk_label_scanning_state_label.config(text="扫描成功", background="#007bff")
-                    self.scroll_offset = 0
-                    self.blink = False
                     self.result_check[chosen_index] = "是"
                 else:
                     self.result_found = False
                     self.result_check[chosen_index] = "否"
-                    if not self.blink:
-                        self.blink_text(self.tab.tk_label_scanning_state_label, "未扫描到结果")
+                    self.tab.tk_label_scanning_state_label, "未扫描到结果"
             else:
                 self.start_ocr_loading()  # 如果OCR模型还未加载,启动加载
                 ocr_result = None
@@ -598,20 +580,16 @@ class TabController:
                     expected_text = target_image  # 你的目标文字(根据实际需求修改)
                     if expected_text.strip() in recognized_text.strip():  # 判断识别文字是否包含目标文字
                         self.result_found = True
-                        self.scroll_offset = 0
-                        self.blink = False
                         self.tab.tk_label_scanning_state_label.config(text="文字识别成功", background="#007bff")
                         self.result_check[chosen_index] = "是"
                     else:
                         self.result_found = False
                         self.result_check[chosen_index] = "否"
-                        if not self.blink:
-                            self.blink_text(self.tab.tk_label_scanning_state_label, "未识别到正确文字")
+                        self.tab.tk_label_scanning_state_label, "未识别到正确文字"
                 else:
                     self.result_found = False
                     self.result_check[chosen_index] = "否"
-                    if not self.blink:
-                        self.blink_text(self.tab.tk_label_scanning_state_label, "未识别到文字")
+                    self.tab.tk_label_scanning_state_label, "未识别到文字"
 
             if self.photo_if == "all":
                 current_scan_result = self.previous_scan_result
