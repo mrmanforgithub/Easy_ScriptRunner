@@ -6,8 +6,6 @@ from ttkbootstrap import *
 from pytkUI.widgets import *
 from tabcontrol import TabController as tab_controller
 from ToolTip import *
-import traceback
-from datetime import datetime
 
 class TabGUI(Frame):
     ui: object
@@ -25,64 +23,18 @@ class TabGUI(Frame):
         self.tk_select_box_circle_time_checkbox = self.__tk_select_box_circle_time_checkbox(
             self.tk_frame_enter_container)
 
-        # 图片相关选项卡
         self.tk_frame_photo_all_container = self.__tk_frame_photo_all_container(self.ext_tabs_second_tab_0)
 
-        # 图片4的容器
-        self.tk_frame_photo4_container = self.__tk_frame_photo4_container(self.tk_frame_photo_all_container)
-        # 图片4的标签
-        self.tk_label_photo4_label = self.__tk_label_photo4_label(self.tk_frame_photo4_container)
-        # 图片4的地址
-        self.tk_input_photo4_text = self.__tk_input_photo4_text(self.tk_frame_photo4_container)
-        # 浏览图片4的按钮
-        self.tk_button_photo4_browser_button = self.__tk_button_photo4_browser_button(self.tk_frame_photo4_container)
-        # 图片4 扫描地址
-        self.tk_select_box_photo4_scan_box = self.__tk_select_box_photo4_scan_box(self.tk_frame_photo4_container)
 
-        # 图片3的容器
-        self.tk_frame_photo3_container = self.__tk_frame_photo3_container(self.tk_frame_photo_all_container)
-        # 图片3的标签
-        self.tk_label_photo3_label = self.__tk_label_photo3_label(self.tk_frame_photo3_container)
-        # 图片3的地址
-        self.tk_input_photo3_text = self.__tk_input_photo3_text(self.tk_frame_photo3_container)
-        # 浏览图片3的按钮
-        self.tk_button_photo3_browser_button = self.__tk_button_photo3_browser_button(self.tk_frame_photo3_container)
-        # 图片3 扫描地址
-        self.tk_select_box_photo3_scan_box = self.__tk_select_box_photo3_scan_box(self.tk_frame_photo3_container)
-
-        # 图片2的容器
-        self.tk_frame_photo2_container = self.__tk_frame_photo2_container(self.tk_frame_photo_all_container)
-        # 图片2的标签
-        self.tk_label_photo2_label = self.__tk_label_photo2_label(self.tk_frame_photo2_container)
-        # 图片2的地址
-        self.tk_input_photo2_text = self.__tk_input_photo2_text(self.tk_frame_photo2_container)
-        # 浏览图片2的按钮
-        self.tk_button_photo2_browser_button = self.__tk_button_photo2_browser_button(self.tk_frame_photo2_container)
-        # 图片2 扫描地址
-        self.tk_select_box_photo2_scan_box = self.__tk_select_box_photo2_scan_box(self.tk_frame_photo2_container)
-
-        # 图片1的容器
-        self.tk_frame_photo1_container = self.__tk_frame_photo1_container(self.tk_frame_photo_all_container)
-        # 图片1的标签
-        self.tk_label_photo1_label = self.__tk_label_photo1_label(self.tk_frame_photo1_container)
-        # 图片1的地址
-        self.tk_input_photo1_text = self.__tk_input_photo1_text(self.tk_frame_photo1_container)
-        # 浏览图片2的按钮
-        self.tk_button_photo1_browser_button = self.__tk_button_photo1_browser_button(self.tk_frame_photo1_container)
-        # 图片1 扫描地址
-        self.tk_select_box_photo1_scan_box = self.__tk_select_box_photo1_scan_box(self.tk_frame_photo1_container)
-
-
-        #方便control用 for循环读取的集合体,那边用self.tab.photo_container[i]即可读取到对应的内容
-        self.photo_container =[self.tk_frame_photo1_container,self.tk_frame_photo2_container,self.tk_frame_photo3_container,self.tk_frame_photo4_container]
-
-        self.photo_label = [self.tk_label_photo1_label,self.tk_label_photo2_label,self.tk_label_photo3_label,self.tk_label_photo4_label]
-
-        self.photo_input = [self.tk_input_photo1_text,self.tk_input_photo2_text,self.tk_input_photo3_text,self.tk_input_photo4_text]
-
-        self.photo_browser_button = [self.tk_button_photo1_browser_button,self.tk_button_photo2_browser_button,self.tk_button_photo3_browser_button,self.tk_button_photo4_browser_button]
-
-        self.photo_scan_box = [self.tk_select_box_photo1_scan_box,self.tk_select_box_photo2_scan_box,self.tk_select_box_photo3_scan_box,self.tk_select_box_photo4_scan_box]
+        # 图片相关选项卡,默认四个框,可以填入
+        self.photo_containers = {}
+        for i in range(4):  # 0~3 对应图文1~4
+            self.photo_containers[i] = self.__create_photo_container(self.tk_frame_photo_all_container, i)
+        self.photo_frame = [self.photo_containers[i]['frame'] for i in range(4)]
+        self.photo_label = [self.photo_containers[i]['label'] for i in range(4)]
+        self.photo_input = [self.photo_containers[i]['input_text'] for i in range(4)]
+        self.photo_browser_button = [self.photo_containers[i]['btn'] for i in range(4)]
+        self.photo_scan_box = [self.photo_containers[i]['cb'] for i in range(4)]
 
 
         self.photo_if_var = tk.StringVar(value="all")  # 默认选中 "全部满足"
@@ -323,128 +275,38 @@ class TabGUI(Frame):
         frame.place(x=0, y=0, width=577, height=398)
         return frame
 
-        """
-        生成一个新的图片框，并更新位置。
-        每次调用会生成一个新的框，并自动命名为 "图片X"
-        """
-        frame_count = len(self.frame_list)  # 获取当前已经生成的图片框数量
-        self.generate_photo_frame(parent, frame_count)
-
-
-
-    def __tk_frame_photo4_container(self, parent):
+    #图片选项卡的重复化内容
+    def __create_photo_container(self, parent, photo_index):
+        # 创建一个容器frame
         frame = Frame(parent, bootstyle="default")
-        frame.place(x=10, y=210, width=480, height=61)
-        return frame
+        frame.place(x=10, y=9 + photo_index * 66, width=480, height=61)
 
-    def __tk_label_photo4_label(self, parent):
-        label = Label(parent, text="图文4:", anchor="center", bootstyle="secondary")
+        # 创建标签
+        label = Label(frame, text=f"图文{photo_index + 1}:", anchor="center", bootstyle="secondary")
         label.place(x=15, y=15, width=50, height=30)
-        return label
 
-    def __tk_input_photo4_text(self, parent):
-        ipt = Entry(parent, bootstyle="info")
-        ipt.place(x=80, y=15, width=220, height=30)
-        return ipt
+        # 创建文本输入框
+        input_text = Entry(frame, bootstyle="info")
+        input_text.place(x=80, y=15, width=220, height=30)
 
-    def __tk_button_photo4_browser_button(self, parent):
-        btn = Button(parent, text="浏览", takefocus=False, bootstyle="info")
+        # 创建浏览按钮
+        btn = Button(frame, text="浏览", takefocus=False, bootstyle="info")
         btn.place(x=315, y=15, width=70, height=30)
-        return btn
 
-    def __tk_select_box_photo4_scan_box(self, parent):
-        cb = Combobox(parent, state="readonly", bootstyle="default")
+        # 创建选择框
+        cb = Combobox(frame, state="readonly", bootstyle="default")
         cb['values'] = ("地址1", "地址2", "地址3", "地址4")
         cb.current(0)
         cb.place(x=395, y=15, width=76, height=30)
-        return cb
 
-
-    def __tk_frame_photo3_container(self, parent):
-        frame = Frame(parent, bootstyle="default")
-        frame.place(x=10, y=144, width=480, height=61)
-        return frame
-
-    def __tk_label_photo3_label(self, parent):
-        label = Label(parent, text="图文3:", anchor="center", bootstyle="secondary")
-        label.place(x=15, y=15, width=50, height=30)
-        return label
-
-    def __tk_input_photo3_text(self, parent):
-        ipt = Entry(parent, bootstyle="info")
-        ipt.place(x=80, y=15, width=220, height=30)
-        return ipt
-
-    def __tk_button_photo3_browser_button(self, parent):
-        btn = Button(parent, text="浏览", takefocus=False, bootstyle="info")
-        btn.place(x=315, y=15, width=70, height=30)
-        return btn
-
-    def __tk_select_box_photo3_scan_box(self, parent):
-        cb = Combobox(parent, state="readonly", bootstyle="default")
-        cb['values'] = ("地址1", "地址2", "地址3", "地址4")
-        cb.current(0)
-        cb.place(x=395, y=15, width=76, height=30)
-        return cb
-
-
-
-    def __tk_frame_photo2_container(self, parent):
-        frame = Frame(parent, bootstyle="default")
-        frame.place(x=10, y=76, width=480, height=61)
-        return frame
-
-    def __tk_label_photo2_label(self, parent):
-        label = Label(parent, text="图文2:", anchor="center", bootstyle="secondary")
-        label.place(x=15, y=15, width=50, height=30)
-        return label
-
-    def __tk_input_photo2_text(self, parent):
-        ipt = Entry(parent, bootstyle="info")
-        ipt.place(x=80, y=15, width=220, height=30)
-        return ipt
-
-    def __tk_button_photo2_browser_button(self, parent):
-        btn = Button(parent, text="浏览", takefocus=False, bootstyle="info")
-        btn.place(x=315, y=15, width=70, height=30)
-        return btn
-
-
-    def __tk_select_box_photo2_scan_box(self, parent):
-        cb = Combobox(parent, state="readonly", bootstyle="default")
-        cb['values'] = ("地址1", "地址2", "地址3", "地址4")
-        cb.current(0)
-        cb.place(x=395, y=15, width=76, height=30)
-        return cb
-
-
-
-    def __tk_frame_photo1_container(self, parent):
-        frame = Frame(parent, bootstyle="default")
-        frame.place(x=10, y=9, width=480, height=61)
-        return frame
-
-    def __tk_label_photo1_label(self, parent):
-        label = Label(parent, text="图文1:", anchor="center", bootstyle="secondary")
-        label.place(x=15, y=15, width=50, height=30)
-        return label
-
-    def __tk_input_photo1_text(self, parent):
-        ipt = Entry(parent, bootstyle="info")
-        ipt.place(x=80, y=15, width=220, height=30)
-        return ipt
-
-    def __tk_button_photo1_browser_button(self, parent):
-        btn = Button(parent, text="浏览", takefocus=False, bootstyle="info")
-        btn.place(x=315, y=15, width=70, height=30)
-        return btn
-
-    def __tk_select_box_photo1_scan_box(self, parent):
-        cb = Combobox(parent, state="readonly", bootstyle="default")
-        cb['values'] = ("地址1", "地址2", "地址3", "地址4")
-        cb.current(0)
-        cb.place(x=395, y=15, width=76, height=30)
-        return cb
+        # 返回所有部件，方便存放在一个字典里
+        return {
+            'frame': frame,
+            'label': label,
+            'input_text': input_text,
+            'btn': btn,
+            'cb': cb
+        }
 
     def __tk_frame_photo_save_container(self, parent):
         frame = Frame(parent, bootstyle="default")
@@ -474,7 +336,7 @@ class TabGUI(Frame):
         rb.place(x=8, y=100, width=69, height=40)
         return rb
     def __tk_label_photo_if_label(self,parent):
-        label = Label(parent,text="扫描策略",anchor="center", bootstyle="default")
+        label = Label(parent,text="满足策略",anchor="center", bootstyle="default")
         label.place(x=4, y=2, width=73, height=48)
         return label
 
@@ -641,30 +503,37 @@ class TabGUI(Frame):
         ipt.place(x=317, y=45, width=150, height=30)
         return ipt
 
+
     def __tk_button_scan_reopen_button(self,parent):
         btn = Button(parent, text="初始化此扫描", takefocus=False,bootstyle="primary")
         btn.place(x=6, y=335, width=565, height=55)
         return btn
+
     def __tk_button_set_default_photo(self,parent):
         btn = Button(parent, text="设置默认图片", takefocus=False,bootstyle="info")
         btn.place(x=6, y=275, width=150, height=50)
         return btn
+
     def __tk_button_set_default_operation(self,parent):
         btn = Button(parent, text="设置默认事件", takefocus=False,bootstyle="info")
         btn.place(x=163, y=275, width=134, height=50)
         return btn
+
     def __tk_button_set_default_key(self,parent):
         btn = Button(parent, text="设置其他", takefocus=False,bootstyle="default")
         btn.place(x=302, y=275, width=137, height=49)
         return btn
+
     def __tk_button_set_scan_time(self,parent):
         btn = Button(parent, text="设置间隔", takefocus=False,bootstyle="default")
         btn.place(x=444, y=275, width=125, height=49)
         return btn
+
     def __tk_button_set_default_similar(self,parent):
         btn = Button(parent, text="设置相似度", takefocus=False,bootstyle="info")
         btn.place(x=6, y=233, width=150, height=30)
         return btn
+
     def __tk_scale_num_similar(self,parent):
         def update_label(scale_value):
             integer_value = int(float(scale_value))  # 转换为整数
@@ -673,18 +542,22 @@ class TabGUI(Frame):
         scale.set(75)
         scale.place(x=170, y=233, width=266, height=30)
         return scale
+
     def __tk_label_label_similar(self,parent):
         label = Label(parent,textvariable=self.label_value,anchor="center", bootstyle="info")
         label.place(x=444, y=233, width=113, height=30)
         return label
+
     def __tk_button_checkout_backlog(self,parent):
         btn = Button(parent, text="错误日志", takefocus=False,bootstyle="default")
         btn.place(x=442, y=97, width=121, height=79)
         return btn
+
     def __tk_button_random_offset(self,parent):
         btn = Button(parent, text="设置随机偏移", takefocus=False,bootstyle="default")
         btn.place(x=6, y=188, width=150, height=30)
         return btn
+
     def __tk_scale_num_random_offset(self,parent, label_texts):
         # 设置偏移量大小的scale控件
         updating_position = False
@@ -709,24 +582,29 @@ class TabGUI(Frame):
         scale.place(x=170, y=190, width=266, height=30)
         update_label(scale.get())
         return scale
+
     def __tk_label_label_random_offset(self,parent):
         label = Label(parent,textvariable=self.offset_value, anchor="center", bootstyle="primary")
         label.place(x=444, y=190, width=113, height=30)
         return label
+
     def __tk_select_box_check_out_box(self,parent):
         cb = Combobox(parent, state="readonly", bootstyle="default")
         cb['values'] = ("强相似","弱相似")
         cb.current(0)
         cb.place(x=6, y=98, width=150, height=30)
         return cb
+
     def __tk_button_set_operation_timeout(self,parent):
         btn = Button(parent, text="设置定时结束", takefocus=False,bootstyle="default")
         btn.place(x=6, y=144, width=150, height=30)
         return btn
+
     def __tk_label_operation_timeout_limit(self,parent):
         label = Label(parent,text="距离停止扫描还剩下( )秒",anchor="center", bootstyle="secondary inverse")
         label.place(x=165, y=98, width=271, height=80)
         return label
+
 
     def similar_default_set(self):
         json_file = self.key_setting_path
@@ -734,13 +612,8 @@ class TabGUI(Frame):
         try:
             with open(json_file, "r", encoding="utf-8") as file:
                 settings = json.load(file)
-        except FileNotFoundError:
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                traceback.print_exc(file=file)  # 将异常信息写入文件
+        except FileNotFoundError as e:
+            tab_controller.error_print(e)
 
         # 获取相似度值
         if "else" in settings and "相似度" in settings["else"]:
@@ -750,12 +623,7 @@ class TabGUI(Frame):
             self.label_value.set(similarity_percent)
             self.tk_scale_num_similar.set(similarity_num)
         else:
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                traceback.print_exc(file=file)  # 将异常信息写入文件
+            tab_controller.error_print(e)
 
     def __event_bind(self):
         #开始扫描
@@ -767,13 +635,13 @@ class TabGUI(Frame):
         # 确认地址
         self.tk_select_box_photo_address.bind('<<ComboboxSelected>>',self.ctl.confirm_address_selection)
         # 4号图片位置
-        self.tk_button_photo4_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 4))
+        self.photo_browser_button[3].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 4))
         # 3号图片位置
-        self.tk_button_photo3_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 3))
+        self.photo_browser_button[2].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 3))
         # 2号图片位置
-        self.tk_button_photo2_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 2))
+        self.photo_browser_button[1].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 2))
         # 1号图片位置
-        self.tk_button_photo1_browser_button.bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 1))
+        self.photo_browser_button[0].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 1))
 
         # 单独图片保存
         self.tk_button_save_photo_button.bind('<Button-1>', self.ctl.save_photo_context)
@@ -842,18 +710,11 @@ class TabGUI(Frame):
         sty.configure(self.new_style(self.tk_button_start_scanning_button), font=("微软雅黑", -20, "bold"))
         #扫描状态标签
         sty.configure(self.new_style(self.tk_label_scanning_state_label), font=("微软雅黑", -20, "bold"))
-        #图片四标签/按钮
-        sty.configure(self.new_style(self.tk_label_photo4_label), font=("微软雅黑", -12))
-        sty.configure(self.new_style(self.tk_button_photo4_browser_button), font=("微软雅黑 Light", -13, "bold"))
-        #图片三标签/按钮
-        sty.configure(self.new_style(self.tk_label_photo3_label), font=("微软雅黑", -12))
-        sty.configure(self.new_style(self.tk_button_photo3_browser_button), font=("微软雅黑 Light", -13, "bold"))
-        #图片二标签/按钮
-        sty.configure(self.new_style(self.tk_label_photo2_label), font=("微软雅黑", -12))
-        sty.configure(self.new_style(self.tk_button_photo2_browser_button), font=("微软雅黑 Light", -13, "bold"))
-        #图片一标签/按钮
-        sty.configure(self.new_style(self.tk_label_photo1_label), font=("微软雅黑", -12))
-        sty.configure(self.new_style(self.tk_button_photo1_browser_button), font=("微软雅黑 Light", -13, "bold"))
+        for i in range(4):  # 对应图文1~4,索引0~3
+            # 配置标签样式
+            sty.configure(self.new_style(self.photo_label[i]), font=("微软雅黑", -12))
+            # 配置按钮样式
+            sty.configure(self.new_style(self.photo_browser_button[i]), font=("微软雅黑 Light", -13, "bold"))
         #图片单独保存/读取按钮
         sty.configure(self.new_style(self.tk_button_save_photo_button), font=("微软雅黑", -15, "bold"))
         sty.configure(self.new_style(self.tk_button_load_photo_button), font=("微软雅黑", -15, "bold"))
@@ -909,8 +770,8 @@ class TabGUI(Frame):
         create_tooltip(self.tk_label_scanning_state_label, "扫描的当前状态")
         create_tooltip(self.tk_select_box_circle_time_checkbox, "选择扫描的次数")
 
-        create_tooltip(self.tk_button_photo1_browser_button, "浏览对应图片的文件(也可以直接填入文字,进行文字识别)")
-        create_tooltip(self.tk_select_box_photo1_scan_box, "选择对应图片的扫描地址")
+        create_tooltip(self.photo_browser_button[0], "浏览对应图片的文件(也可以直接填入文字,进行文字识别)")
+        create_tooltip(self.photo_scan_box[0], "选择对应图片的扫描地址")
 
         create_tooltip(self.tk_button_load_photo_button, "单独读取图片记录到本页")
         create_tooltip(self.tk_button_save_photo_button, "单独保存本页图片记录")
@@ -919,7 +780,8 @@ class TabGUI(Frame):
         create_tooltip(self.tk_select_box_photo_address, "当前地址信息")
         create_tooltip(self.tk_button_select_photo_save, "记录下当前地址信息")
         create_tooltip(self.tk_label_photo_if_label, "设置执行策略,满足一个或者全部则执行操作")
-        create_tooltip(self.tk_label_process_label, "选择一个窗口,只有这个窗口在最前方时才会执行操作")
+        create_tooltip(self.tk_label_process_label, "只有该窗口被选中时才会扫描")
+        create_tooltip(self.tk_button_process_button,"选择一个窗口名称,只有这个窗口在最前方时才会执行操作")
 
         create_tooltip(self.tk_button_operation_change_button, "修改对应行的操作内容")
         create_tooltip(self.tk_button_operation_delete_button, "删除对应行的操作内容")

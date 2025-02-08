@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 import pyautogui
 from PIL import Image, ImageGrab
-import traceback
 from datetime import datetime
 import subprocess
 import re
@@ -142,7 +141,6 @@ class TabController:
                 self.scan_futures.add(future)
         self.save_photos()
 
-        #停止扫描
     #停止扫描
     def stop_scanning(self):
         # 停止扫描
@@ -264,6 +262,157 @@ class TabController:
 
 
 #工具/造轮子代码
+
+    # 添加寻路操作窗口
+    def add_pathfinding_operation_window(self, callback):
+        # 打开自动寻路窗口并且记录寻路位置偏差
+        pathfinding_window = tk.Toplevel(self.ui)
+        pathfinding_window.title("自动寻路")
+        pathfinding_window.geometry("300x290")  # 增加一些高度以适应新控件
+        pathfinding_window.lift()
+        pathfinding_window.focus_set()
+
+        def validate_input(entry):
+            if entry.isdigit() or (entry.startswith('-') and entry[1:].isdigit()):
+                return True
+            else:
+                return False
+
+        def handle_confirm_click(x_entry, y_entry, combobox):
+            if validate_input(x_entry.get()) and validate_input(y_entry.get()):
+                x_value = int(x_entry.get())
+                y_value = int(y_entry.get())
+                selected_label = combobox.get()  # 获取选中的标签
+                selected_index = int(selected_label[-1]) - 1
+                result = f"({selected_index}, {x_value}, {y_value})"
+                pathfinding_window.destroy()
+                callback(result)
+
+        # 添加 Combobox 控件
+        label_options = ["图文1", "图文2", "图文3", "图文4"]
+        combobox_label = tk.Label(pathfinding_window, text="选择起始点:")
+        combobox_label.pack(pady=5)
+        combobox = ttk.Combobox(pathfinding_window, values=label_options)
+        combobox.pack(pady=5)
+        combobox.set(label_options[0])  # 默认选中第一个标签
+
+        x_label = tk.Label(pathfinding_window, text="填入变动值"+"\nx(正值为＋):")
+        x_label.pack(pady=5)
+        x_entry = tk.Entry(pathfinding_window)
+        x_entry.insert(0, "0")  # 设置默认值为 0
+        x_entry.pack(pady=5)
+
+        y_label = tk.Label(pathfinding_window, text="y(正值为＋):")
+        y_label.pack(pady=5)
+        y_entry = tk.Entry(pathfinding_window)
+        y_entry.insert(0, "0")
+        y_entry.pack(pady=5)
+
+        pathfinding_button = tk.Button(pathfinding_window, text="确认",
+                                        command=lambda: handle_confirm_click(x_entry, y_entry, combobox))
+        pathfinding_button.pack(pady=5)
+
+    def pathfinding_drag_window(self,move_type ,callback):
+        pathfinding_window = tk.Toplevel(self.ui)
+        pathfinding_window.title("匹配位置拖动")
+        pathfinding_window.geometry("500x320")  # 调整窗口宽度
+        pathfinding_window.lift()
+        pathfinding_window.focus_set()
+
+        def validate_input(entry):
+            if entry.isdigit() or (entry.startswith('-') and entry[1:].isdigit()):
+                return True
+            else:
+                return False
+
+        def handle_confirm_click(start_x_entry, start_y_entry, end_x_entry, end_y_entry, start_combobox, end_combobox):
+            if validate_input(start_x_entry.get()) and validate_input(start_y_entry.get()) and \
+            validate_input(end_x_entry.get()) and validate_input(end_y_entry.get()):
+                start_x_value = int(start_x_entry.get())
+                start_y_value = int(start_y_entry.get())
+                end_x_value = int(end_x_entry.get())
+                end_y_value = int(end_y_entry.get())
+                start_selected_label = start_combobox.get()  # 获取起始点选中的标签
+                end_selected_label = end_combobox.get()  # 获取结束点选中的标签
+                def get_selected_index(label):
+                    if label[-1].isdigit():
+                        return int(label[-1]) - 1
+                    return None  # 返回 None 表示没有有效索引
+
+                start_selected_index = get_selected_index(start_selected_label)
+                end_selected_index = get_selected_index(end_selected_label)
+
+                duration = 0.2
+                if start_selected_index is None:
+                    result = f"拖动:{duration}-{move_type}-[({start_x_value}, {start_y_value}), ({end_selected_index}, {end_x_value}, {end_y_value})]"
+                elif end_selected_index is None:
+                    result = f"拖动:{duration}-{move_type}-[({start_selected_index}, {start_x_value}, {start_y_value}), ({end_x_value}, {end_y_value})]"
+                else:
+                    result = f"拖动:{duration}-{move_type}-[({start_selected_index}, {start_x_value}, {start_y_value}), ({end_selected_index}, {end_x_value}, {end_y_value})]"
+                pathfinding_window.destroy()
+                callback(result)
+
+        point_frame = tk.Frame(pathfinding_window)
+        point_frame.pack()
+
+        # 左侧起始点区域
+        start_frame = tk.Frame(point_frame)
+        start_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
+        # 起始点
+        start_combobox_label = tk.Label(start_frame, text="选择起始点:")
+        start_combobox_label.pack(pady=5)
+        start_combobox = ttk.Combobox(start_frame, values=["图文1", "图文2", "图文3", "图文4","固定"])
+        start_combobox.pack(pady=5)
+        start_combobox.set("固定")
+
+        start_x_label = tk.Label(start_frame, text="x(右为正):")
+        start_x_label.pack(pady=5)
+        start_x_entry = tk.Entry(start_frame)
+        start_x_entry.insert(0, "0")  # 默认值为 0
+        start_x_entry.pack(pady=5)
+
+        start_y_label = tk.Label(start_frame, text="y(上为正):")
+        start_y_label.pack(pady=5)
+        start_y_entry = tk.Entry(start_frame)
+        start_y_entry.insert(0, "0")
+        start_y_entry.pack(pady=5)
+
+        # 中间的 "to" 标签
+        to_label = tk.Label(point_frame, text="to", font=("Arial", 16))
+        to_label.pack(side=tk.LEFT, padx=10, pady=100)  # 适当调整位置
+
+        # 右侧结束点区域
+        end_frame = tk.Frame(point_frame)
+        end_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
+        # 结束点
+        end_combobox_label = tk.Label(end_frame, text="选择结束点:")
+        end_combobox_label.pack(pady=5)
+        end_combobox = ttk.Combobox(end_frame, values=["图文1", "图文2", "图文3", "图文4","固定"])
+        end_combobox.pack(pady=5)
+        end_combobox.set("固定")
+
+        end_x_label = tk.Label(end_frame, text="x(右为正):")
+        end_x_label.pack(pady=5)
+        end_x_entry = tk.Entry(end_frame)
+        end_x_entry.insert(0, "0")  # 默认值为 0
+        end_x_entry.pack(pady=5)
+
+        end_y_label = tk.Label(end_frame, text="y(上为正):")
+        end_y_label.pack(pady=5)
+        end_y_entry = tk.Entry(end_frame)
+        end_y_entry.insert(0, "0")
+        end_y_entry.pack(pady=5)
+
+        # 确认按钮
+        button_frame = tk.Frame(pathfinding_window)
+        button_frame.pack(side=tk.BOTTOM, pady=10)  # 你可以通过调整padding来调整按钮位置
+
+        pathfinding_button = tk.Button(button_frame, text="确认", command=lambda: handle_confirm_click(start_x_entry, start_y_entry, end_x_entry, end_y_entry, start_combobox, end_combobox), width=20,font=("微软雅黑", -16, "bold"))
+        pathfinding_button.pack()  # 放置确认按钮
+
+
     def save_else(self,key,value):
         json_file = self.key_setting_path
         try:
@@ -306,26 +455,14 @@ class TabController:
             try:
                 if os.name == 'nt':  # Windows系统
                     subprocess.Popen(['explorer', logs_path])
-            except FileNotFoundError:
-                now = datetime.now()
-                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-                log_filename = f"backtrace_logs/{timestamp}"
-
-                with open(log_filename, "w") as file:
-                    file.write(f"Error occurred at {now}:\n")
-                    traceback.print_exc(file=file)  # 将异常信息写入文件
+            except FileNotFoundError as e:
+                self.error_print(e)
         else:
             try:
                 os.makedirs(logs_path)
             except OSError as e:
+                self.error_print(e)
                 return
-            now = datetime.now()
-            timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-            log_filename = f"backtrace_logs/{timestamp}"
-
-            with open(log_filename, "w") as file:
-                file.write(f"Error occurred at {now}:\n")
-                file.write(f"{logs_path} does not exist\n")
             subprocess.Popen(['explorer', logs_path])
         return
 
@@ -454,6 +591,7 @@ class TabController:
         else:
             return False  # 图片不相似
 
+    #比对文字相似度,确认是否符合要求
     def compare_text_with_ocr(self,screenshot,text, address_content,chosen_index):
         byte_io = io.BytesIO()
         screenshot.save(byte_io, format='PNG')
@@ -461,11 +599,12 @@ class TabController:
         self.start_ocr_loading()  # 如果OCR模型还未加载,启动加载
         ocr_result = None
         # 设置相似度阈值
-        similarity_threshold = self.check_similar     # 通过调整阈值来判断相似度,阈值默认0.75
+        similarity_threshold = self.check_similar-0.05     # 通过调整阈值来判断相似度,文字识别相似度判断可以放松一点
         dx, dy = address_content[0], address_content[1]  # 计算相对偏移量
         try:
             ocr_result = self.ocr.runBytes(image_bytes)
         except Exception as e:
+            self.error_print(e)
             ocr_result = None
 
         if ocr_result and isinstance(ocr_result, dict) and 'data' in ocr_result and isinstance(ocr_result['data'], list):
@@ -562,6 +701,7 @@ class TabController:
                                                                 f"\n还剩下{int(self.time_limit-self.time_count)} 秒")
                 if self.time_count >= self.time_limit:
                     self.tab.tk_label_operation_timeout_limit.config(text="定时结束,已停止扫描")
+                    self.ui.deiconify()
                     self.stop_scanning()  # 达到定时停止时间，停止扫描
 
             self.scan_count += 1
@@ -570,6 +710,7 @@ class TabController:
                                                                 f"\n还剩下{self.scan_limit-self.scan_count} 次")
                 if self.scan_count >= self.scan_limit:
                     self.tab.tk_label_operation_timeout_limit.config(text="次数到达,已停止扫描")
+                    self.ui.deiconify()
                     self.stop_scanning()  # 达到扫描次数限制，停止扫描
 
             # 调整循环次数
@@ -720,13 +861,10 @@ class TabController:
 
     # 添加拖动操作窗口
     def add_drag_operation_window(self, position):
-        # 弹出选择操作类型的面板
-        self.ui.iconify()
-
         # 创建选择操作类型的窗口
         selection_window = tk.Toplevel(self.ui)
         selection_window.title("选择操作类型")
-        selection_window.geometry("300x150")
+        selection_window.geometry("400x270")
 
         # 选择拖动或移动
         move_type = tk.StringVar(value="drag")  # 默认选项为拖动
@@ -734,35 +872,76 @@ class TabController:
         # 选择曲线或直线
         line_type = tk.StringVar(value="curve")  # 默认选项为曲线
 
-        # 创建 Radiobutton 来选择曲线/直线
-        curve_button = tk.Radiobutton(selection_window, text="绘制曲线(速度慢)", variable=line_type, value="curve")
-        curve_button.pack(pady=5)
+        # 创建容器来放置直线/曲线单选框
+        line_container = tk.Frame(selection_window)
+        line_container.pack(pady=10)
 
-        line_button = tk.Radiobutton(selection_window, text="绘制直线(速度快)", variable=line_type, value="line")
-        line_button.pack(pady=5)
+        curve_button = tk.Radiobutton(line_container, text="绘制曲线(速度慢)", variable=line_type, value="curve")
+        curve_button.pack(side=tk.LEFT, padx=10)
 
-        # 创建按钮来选择拖动/移动
-        def on_drag_select():
-            move_type.set("drag")
-            self.create_drag_window(position, move_type.get(), line_type.get())
+        line_button = tk.Radiobutton(line_container, text="绘制直线(速度快)", variable=line_type, value="line")
+        line_button.pack(side=tk.LEFT, padx=10)
+
+        # 添加分割线
+        separator = ttk.Separator(selection_window, orient='horizontal')
+        separator.pack(fill='x', pady=10)
+
+        # 创建容器来放置拖动/移动单选框
+        move_container = tk.Frame(selection_window)
+        move_container.pack(pady=10)
+
+        drag_button = tk.Radiobutton(move_container, text="拖动(鼠标按下)", variable=move_type, value="drag")
+        drag_button.pack(side=tk.LEFT, padx=10)
+
+        move_button = tk.Radiobutton(move_container, text="移动(鼠标不按)", variable=move_type, value="move")
+        move_button.pack(side=tk.LEFT, padx=10)
+
+        # 添加分割线2
+        separator2 = ttk.Separator(selection_window, orient='horizontal')
+        separator2.pack(fill='x', pady=10)
+
+        # 添加输入框，用户可以输入一些额外的值
+        input_label = tk.Label(selection_window, text="绘制轨迹(起始点->终止点)：")
+        input_label.pack(pady=5)
+
+        input_entry = tk.Entry(selection_window, width=30)
+        input_entry.pack(pady=5)
+
+        # 创建录制曲线按钮
+        def record_curve():
+            self.create_drag_window(selection_window,move_type.get(), line_type.get(),set_result)
+            selection_window.iconify()
+
+        def pathfinding_operation():
+            self.pathfinding_drag_window(move_type.get(),set_result)
+
+        def set_result(pathfinding_result):
+            input_entry.delete(0, tk.END)  # 清空输入框
+            input_entry.insert(tk.END, pathfinding_result)  # 设置新值
+
+        def confirm_input():
+            self.operations.insert(position, input_entry.get())
+            self.save_operations()
+            self.populate_operation_list()
             selection_window.destroy()
-
-        def on_move_select():
-            move_type.set("move")
-            self.create_drag_window(position, move_type.get(), line_type.get())
-            selection_window.destroy()
+            self.ui.deiconify()
 
         button_frame = tk.Frame(selection_window)
         button_frame.pack(pady=10)
 
-        drag_button = tk.Button(button_frame, text="拖动(鼠标按下)", command=on_drag_select)
-        drag_button.pack(side=tk.LEFT,padx=20)
+        record_button = tk.Button(button_frame, text="录制曲线", command=record_curve)
+        record_button.pack(side=tk.LEFT,padx=20)
 
-        move_button = tk.Button(button_frame, text="移动(鼠标不按)", command=on_move_select)
-        move_button.pack(side=tk.LEFT,padx=20)
+        confirm_button = tk.Button(button_frame, text="提交操作", command=confirm_input)
+        confirm_button.pack(side=tk.LEFT, padx=20)
+
+        path_button = tk.Button(button_frame, text="手动输入", command=pathfinding_operation)
+        path_button.pack(side=tk.LEFT, padx=20)
+
         selection_window.focus_set()
 
-    def create_drag_window(self, position, move_type, line_type):
+    def create_drag_window(self, selection_window, move_type, line_type,callback):
+        self.ui.iconify()
         # 打开记录拖动窗口并且记录拖动起始位置与结束位置
         pstart = None
         pend = None
@@ -806,11 +985,9 @@ class TabController:
             duration = round(duration, 2)
 
             # 将拖动操作加入operations
-            self.operations.insert(position, f"拖动:{duration}-{move_type}-{simplified_points}")
-            self.save_operations()
-            self.populate_operation_list()
-
+            callback(f"拖动:{duration}-{move_type}-{simplified_points}")
             self.ui.deiconify()
+            selection_window.deiconify()
             time.sleep(0.2)
             drag_window.destroy()
 
@@ -820,56 +997,7 @@ class TabController:
 
         drag_window.focus_set()
 
-    # 添加寻路操作窗口
-    def add_pathfinding_operation_window(self, callback):
-        # 打开自动寻路窗口并且记录寻路位置偏差
-        pathfinding_window = tk.Toplevel(self.ui)
-        pathfinding_window.title("自动寻路")
-        pathfinding_window.geometry("300x290")  # 增加一些高度以适应新控件
-        pathfinding_window.lift()
-        pathfinding_window.focus_set()
 
-        def validate_input(entry):
-            if entry.isdigit() or (entry.startswith('-') and entry[1:].isdigit()):
-                return True
-            else:
-                return False
-
-        def handle_confirm_click(x_entry, y_entry, combobox):
-            if validate_input(x_entry.get()) and validate_input(y_entry.get()):
-                x_value = int(x_entry.get())
-                y_value = int(y_entry.get())
-                selected_label = combobox.get()  # 获取选中的标签
-                selected_index = int(selected_label[-1]) - 1
-                result = f"({selected_index}, {x_value}, {y_value})"
-                pathfinding_window.destroy()
-                callback(result)
-
-        # 添加 Combobox 控件
-        label_options = ["图文1", "图文2", "图文3", "图文4"]
-        combobox_label = tk.Label(pathfinding_window, text="选择起始点:")
-        combobox_label.pack(pady=5)
-        combobox = ttk.Combobox(pathfinding_window, values=label_options)
-        combobox.pack(pady=5)
-        combobox.set(label_options[0])  # 默认选中第一个标签
-
-        x_label = tk.Label(pathfinding_window, text="填入变动值"+"\nx(正值为＋):")
-        x_label.pack(pady=5)
-        x_entry = tk.Entry(pathfinding_window)
-        x_entry.insert(0, "0")  # 设置默认值为 0
-        x_entry.pack(pady=5)
-
-        y_label = tk.Label(pathfinding_window, text="y(正值为＋):")
-        y_label.pack(pady=5)
-        y_entry = tk.Entry(pathfinding_window)
-        y_entry.insert(0, "0")
-        y_entry.pack(pady=5)
-
-
-
-        pathfinding_button = tk.Button(pathfinding_window, text="确认",
-                                        command=lambda: handle_confirm_click(x_entry, y_entry, combobox))
-        pathfinding_button.pack(pady=5)
 
     # 添加等待操作窗口
     def add_wait_operation_window(self, position):
@@ -880,14 +1008,18 @@ class TabController:
         wait_window.lift()
         wait_window.focus_set()
 
-        wait_label = tk.Label(wait_window, text="请输入等待时间(毫秒)：")
+        wait_label = tk.Label(wait_window, text="请输入等待时间(毫秒):")
         wait_label.pack(pady=5)
 
         wait_entry = tk.Entry(wait_window)
         wait_entry.pack(pady=5)
 
         def confirm_wait():
-            wait_time = int(wait_entry.get())
+            try:
+                wait_time = int(wait_entry.get())
+            except:
+                tk.messagebox.showwarning("警告", "输入的并非数字！")
+                return
             # 直接在这里处理等待操作,避免调用额外的函数
             self.operations.insert(position, f"等待:{wait_time}ms")
             self.save_operations()
@@ -980,7 +1112,7 @@ class TabController:
         # 将长按时间输入框移到mode_frame之外,放到input_frame的下方
         press_frame = tk.Frame(keyboard_window)
         press_frame.pack(pady=5)
-        long_press_label = tk.Label(press_frame, text="长按时间(秒)：")
+        long_press_label = tk.Label(press_frame, text="长按时间(秒):")
         long_press_label.pack(side=tk.LEFT, padx=5)
 
         long_press_entry = tk.Entry(press_frame, width=10)
@@ -1221,19 +1353,6 @@ class TabController:
             if operation.startswith("等待"):
                 wait_time = int(operation.split(":")[1].strip("ms"))
                 time.sleep(wait_time / 1000)  # Convert milliseconds to seconds and wait
-            elif operation.startswith("寻路"):
-                pathfinding = operation.split(":")[1]
-                selected_index,loc = pathfinding.split("-")
-                path = eval(loc)
-                max_loc = self.max_loc[int(selected_index)]  #选择对应识别位置的中心
-                if max_loc is not [0,0,0,0]: #如果不为空,默认是空的,赋值后不为空
-                    center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
-                    center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
-                    # offset_x = random.randint(-1, 1)
-                    # offset_y = random.randint(-1, 1)
-                    offset_x = 0
-                    offset_y = 0
-                    pyautogui.click(center_x + int(path[0]) + offset_x, center_y + int(path[1]) + offset_y)
             elif operation.startswith("滚轮"):
                 scroll_time = int(operation.split(":")[1].strip("步"))
                 pyautogui.scroll(scroll_time)  # 执行滚轮
@@ -1294,13 +1413,11 @@ class TabController:
                 operation_details = operation.split(":")
                 if len(operation_details) == 2:
                     key_info = operation_details[1]  # 获取按键信息部分,例如 10秒-[Shift]+[Ctrl]
-
                     # 如果包含 "秒" 则是长按模式
                     if "秒" in key_info:
                         # 解析长按时间和按键
                         long_press_time, keys = key_info.split("-")
                         long_press_time = int(long_press_time.replace("秒", "").strip())  # 提取长按时间
-
                         # 处理按键,如果是多按,则按下每个按键
                         if "+" in keys:
                             pressed_keys = keys.split("+")
@@ -1414,6 +1531,32 @@ class TabController:
                 num_points = len(positions)
                 time_per_move = round(duration / (num_points - 1),3)*2  # 每次移动的时间
                 # 如果 positions 里面有多个点,按顺序进行逐步移动
+                    # 遍历所有坐标，如果是(0, 0, 0)的格式，将其特殊处理
+                processed_positions = []
+                if len(positions) == 2:
+                    for pos in positions:
+                        # 如果坐标是三个值，检查是否为(0, 0, 0)
+                        if len(pos) == 3:
+                            scan_region_index = pos[0]  # 获取扫描区域标识
+                            x, y = pos[1], pos[2]  # 获取坐标
+                            # 通过扫描区域标识获取 max_loc
+                            max_loc = self.max_loc[scan_region_index]  # 获取对应扫描区域的坐标范围
+                            if max_loc != [0, 0, 0, 0]:  # 如果该区域存在有效坐标
+                                # 计算该区域的中心点坐标
+                                center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
+                                center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
+                                # 将计算出的中心点坐标替换原坐标
+                                processed_positions.append((center_x + x, center_y + y))
+                            else:
+                                # 如果该区域无效，则继续使用原始坐标
+                                processed_positions.append((x, y))
+                        else:
+                            # 如果坐标是 (x, y)，直接使用原坐标
+                            processed_positions.append(pos)
+                else:
+                    # 如果 positions 中有多个点，不进行坐标解析，直接使用原坐标
+                    processed_positions = positions
+                positions = processed_positions
                 if move_type == "drag":
                     # 如果是拖动,按下鼠标并进行拖动
                     pyautogui.moveTo(positions[0][0], positions[0][1], duration=0.001)
@@ -1440,6 +1583,7 @@ class TabController:
                                                             f"\n还剩下{self.execution_limit-self.execution_count} 次")
             if self.execution_count >= self.execution_limit:
                 self.tab.tk_label_operation_timeout_limit.config(text="次数到达,已停止扫描")
+                self.ui.deiconify()
                 self.stop_scanning()  # 达到扫描次数限制，停止扫描
         pass
 
@@ -1677,13 +1821,7 @@ class TabController:
                     json.dump(settings_data, f, indent=4, ensure_ascii=False)
                 default_operation_window.destroy()
             except Exception as e:
-                now = datetime.now()
-                timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
-                log_filename = f"backtrace_logs/{timestamp}"
-
-                with open(log_filename, "w") as file:
-                    file.write(f"Error occurred at {now}:\n")
-                    traceback.print_exc(file=file)  # 将异常信息写入文件
+                self.error_print(e)
 
         def load_settings():
             data = {}
@@ -1801,7 +1939,7 @@ class TabController:
         # 创建设置面板
         timeout_window = tk.Toplevel(self.ui)
         timeout_window.title("设置操作超时")
-        timeout_window.geometry("300x300")
+        timeout_window.geometry("280x250")
 
         # 输入框和单选按钮
         input_frame = tk.Frame(timeout_window)
