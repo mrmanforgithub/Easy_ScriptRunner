@@ -14,6 +14,7 @@ import subprocess
 import re
 import io
 import pygetwindow as gw
+import threading
 
 class TabController:
     # 导入UI类后,替换以下的 object 类型,将获得 IDE 属性提示功能
@@ -24,8 +25,7 @@ class TabController:
         self.tab = tab     # 本身的tab页面,用于给自己的tab控件进行操作
         self.operation_position = None
         self.operation_content = None
-        self.keep_scanning = False   # 扫描的信标,保证正在扫描
-        self.sub_windows = []   # 子窗口集合,用于调用其他tab
+
         self.ocr = None  # 设置ocr模型
 
         self.start_time = None  # 开始时间
@@ -55,7 +55,6 @@ class TabController:
         self.default_file_path = "setting_json/default_operation.json"   # 默认文件,记录开启时导入的操作内容
         self.default_photo_path = "setting_json/default_photo.json"    # 默认文件,记录开启时导入的图片内容
         self.key_setting_path = "setting_json/key_setting.json"  # 默认文件,记录快捷键的内容
-        self.window = None
 
         self.operations = self.load_operations(self.default_file_path)
         if not self.operations:
@@ -73,12 +72,12 @@ class TabController:
         self.max_loops = None  # 扫描最大数量
 
         self.scanning = False  # 是否扫描
+        self.is_executing = False
 
         self.selection_address = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]] # 四个不同的扫描地址
         self.max_loc = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]  # 四个不同的扫描成功地址
 
         self.result_check = ["是", "是", "是", "是"]  # 与或非的检查单,全为是则通过检查
-        self.result_found = False
 
         # 默认的扫描相似度阈值
         self.check_similar = 0.75
@@ -145,11 +144,14 @@ class TabController:
     def stop_scanning(self):
         # 停止扫描
         self.scanning = False  #扫描标签归零
-        self.result_found = False
         self.tab.tk_label_scanning_state_label.config(background="#6c757d") #变为灰色
+        self.start_time = None
         self.time_count = 0  #运行时间清空
+        self.time_limit = None
         self.scan_count = 0  #扫描次数清空
+        self.scan_limit = None
         self.execution_count = 0 #执行次数清空
+        self.execution_limit = None
         self.max_loc = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]] #识别成功地址清空
         for future in list(self.scan_futures):  #从线程池子移除所有的扫描线程
             if not future.done():
@@ -412,7 +414,7 @@ class TabController:
         pathfinding_button = tk.Button(button_frame, text="确认", command=lambda: handle_confirm_click(start_x_entry, start_y_entry, end_x_entry, end_y_entry, start_combobox, end_combobox), width=20,font=("微软雅黑", -16, "bold"))
         pathfinding_button.pack()  # 放置确认按钮
 
-
+    #保存各种其他/快捷键
     def save_else(self,key,value):
         json_file = self.key_setting_path
         try:
@@ -434,6 +436,7 @@ class TabController:
         except IOError as e:
             self.error_print(f"写入文件时发生错误: {e}")
 
+    #打印错误信息到日志
     def error_print(self,error):
         now = datetime.now()
         timestamp = now.strftime("backtrace_%Y_%m_%d_%H_%M_log.txt")
@@ -549,12 +552,13 @@ class TabController:
         self.save_photos()
 
     # 根据位置来读取照片
-    def load_target_image(self,path,place):
+    def load_target_image(self,path,place=None):
         try:
             target_image = Image.open(path)
         except:
             if not path or path.strip() == "":  # 检查字符串是否为空或None
-                self.result_check[place] = '是'  # 设置结果为 "是"
+                if place is not None:
+                    self.result_check[place] = '是'  # 设置结果为 "是"
                 return None  # 返回 None 表示没有有效的内容
             else:
                 return path
@@ -562,14 +566,14 @@ class TabController:
         return target_image
 
     #比对图片相似度,确认是否是符合要求的
-    def compare_images_with_template_matching(self, image1, image2, address_content,chosen_index):
+    def compare_images_with_template_matching(self, image1, image2, address_content,chosen_index=None):
         # 比较图片的算法
         # 将图像转换为灰度图
         try:
             gray_image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
             gray_image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
         except cv2.error as e:
-            print(e)
+            self.error_print(e)
             return False
 
         # 使用模板匹配
@@ -586,13 +590,14 @@ class TabController:
             dx, dy = address_content[0], address_content[1]  # 计算相对偏移量
             top_left = (max_loc[0] + dx, max_loc[1] + dy)  # 最佳匹配位置的左上角坐标
             bottom_right = (top_left[0] + w, top_left[1] + h)  # 最佳匹配位置的右下角坐标
-            self.max_loc[chosen_index] = (top_left, bottom_right)
+            if chosen_index is not None:
+                self.max_loc[chosen_index] = (top_left, bottom_right)
             return True  # 图片相似
         else:
             return False  # 图片不相似
 
     #比对文字相似度,确认是否符合要求
-    def compare_text_with_ocr(self,screenshot,text, address_content,chosen_index):
+    def compare_text_with_ocr(self,screenshot,text, address_content,chosen_index=None):
         byte_io = io.BytesIO()
         screenshot.save(byte_io, format='PNG')
         image_bytes = byte_io.getvalue()
@@ -618,100 +623,104 @@ class TabController:
                     if score >=similarity_threshold:  # 判断识别文字是否包含目标文字并且可信度够高
                         pt1 = tuple(adjusted_box[0])  # 左上角坐标
                         pt2 = tuple(adjusted_box[2])  # 右下角坐标
-                        self.max_loc[chosen_index]=(pt1,pt2)  #将识别到的坐标保存至识别成功坐标组
-                        self.tab.tk_label_scanning_state_label.config(text="文字识别成功", background="#007bff")
+                        if chosen_index is not None:
+                            self.max_loc[chosen_index]=(pt1,pt2)  #将识别到的坐标保存至识别成功坐标组
                         return True
                     else:
-                        self.tab.tk_label_scanning_state_label.config(text="相似度不够", background="#FFB84D")
                         return False
-            self.tab.tk_label_scanning_state_label.config(text="无目标文字", background="#007bff")
-            return False
+                else:
+                    return False
         else:
-            self.tab.tk_label_scanning_state_label.config(text="未寻找到文字", background="#007bff")
             return False
 
     #扫描循环(此处是进行扫描的核心代码)
-    def scan_loop(self, target_image, photo_address, chosen_index, max_loops):
+    def scan_loop(self, target, photo_address, chosen_index, max_loops):
         # 检查地址内容
-        address_content = self.address_change(evt=None,address_select=photo_address,change_type=None)
-        screenshot=None
+        address_content = self.address_change(evt=None, address_select=photo_address, change_type=None)
+        screenshot = None
         if address_content == [0, 0, 0, 0]:
-            self.tab.tk_label_scanning_state_label.config(text="地址无效")
-            self.ui.after(2500, self.stop_scanning())
+            self.ui.after(0, lambda: self.tab.tk_label_scanning_state_label.config(text="地址无效"))
+            self.ui.after(2500, lambda: self.stop_scanning())
             return
+
         if self.scanning and (max_loops is None or max_loops > 0):
-            self.tab.tk_button_start_scanning_button.configure(text="关闭扫描")
+            self.ui.after(0, lambda: self.tab.tk_button_start_scanning_button.configure(text="关闭扫描"))
             active_window = gw.getActiveWindow()
             if active_window:
                 if self.process_name and self.process_name not in active_window.title:
-                    self.tab.tk_label_scanning_state_label.config(text="选择窗口未置顶", background="#FFB84D")
-                    self.ui.after(self.scan_interval, lambda: self.scan_loop(target_image, photo_address, chosen_index, max_loops))
+                    self.ui.after(0, lambda: self.tab.tk_label_scanning_state_label.config(text="选择窗口未置顶", background="#FFB84D"))
+                    self.ui.after(self.scan_interval, lambda: self.scan_loop(target, photo_address, chosen_index, max_loops))
                     return  # 不执行操作
             x1, y1, x2, y2 = address_content
             screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2))
             screen_region = np.array(screenshot)
             # 判断target_image类型,如果是图片(numpy.ndarray)则进行图像处理,否则进行OCR识别
-            if isinstance(target_image, np.ndarray):
-                result = self.compare_images_with_template_matching(screen_region, target_image, address_content,chosen_index)
+            if isinstance(target, np.ndarray):
+                result = self.compare_images_with_template_matching(screen_region, target, address_content, chosen_index)
                 if result:
-                    self.result_found = True
-                    self.tab.tk_label_scanning_state_label.config(text="扫描成功", background="#007bff")
+                    self.ui.after(0, lambda: self.tab.tk_label_scanning_state_label.config(text="扫描成功", background="#007bff"))
                     self.result_check[chosen_index] = "是"
                 else:
-                    self.result_found = False
                     self.result_check[chosen_index] = "否"
-                    self.tab.tk_label_scanning_state_label.config(text="未扫描到结果", background="#007bff")
+                    self.ui.after(0, lambda: self.tab.tk_label_scanning_state_label.config(text="未扫描到结果", background="#007bff"))
             else:
-                ocr_result = self.compare_text_with_ocr(screenshot,target_image,address_content,chosen_index)
+                ocr_result = self.compare_text_with_ocr(screenshot, target, address_content, chosen_index)
                 if ocr_result:  # 判断识别文字是否包含目标文字
-                    self.result_found = True
                     self.result_check[chosen_index] = "是"
+                    self.ui.after(0, lambda: self.tab.tk_label_scanning_state_label.config(text="文字识别成功", background="#007bff"))
                 else:
-                    self.result_found = False
                     self.result_check[chosen_index] = "否"
-
+                    self.ui.after(0, lambda: self.tab.tk_label_scanning_state_label.config(text="未扫描到结果", background="#007bff"))
 
             if self.photo_if == "all":
                 current_scan_result = self.previous_scan_result
                 # 如果是 "all"，要求 result_check 所有项都是 "是"
                 if self.result_check == ["是", "是", "是", "是"]:
-                    self.previous_scan_result=True
-                    self.execute_operations()
+                    self.previous_scan_result = True
+                    if not self.is_executing:
+                        self.is_executing = True  # 设置为正在执行
+                        thread = threading.Thread(target=self.execute_operations)
+                        thread.daemon = True  # 设置为守护线程
+                        thread.start()
                     if self.previous_scan_result != current_scan_result and self.execution_method == "scan_changed":
                         self.execution_count += 1
                 else:
-                    self.previous_scan_result=False
+                    self.previous_scan_result = False
             elif self.photo_if == "one":
                 current_scan_result = self.previous_scan_result
                 # 如果是 "one"，只要有一个是 "是" 就满足
                 if "是" in self.result_check:
-                    self.previous_scan_result=True
-                    self.execute_operations()
+                    self.previous_scan_result = True
+                    if not self.is_executing:
+                        self.is_executing = True  # 设置为正在执行
+                        thread = threading.Thread(target=self.execute_operations)
+                        thread.daemon = True  # 设置为守护线程
+                        thread.start()
                     if self.previous_scan_result != current_scan_result and self.execution_method == "scan_changed":
                         self.execution_count += 1
                 else:
-                    self.previous_scan_result=False
+                    self.previous_scan_result = False
             # 关闭截图资源
             screenshot.close()
 
             # 更新扫描时间和扫描次数
             self.time_count = (time.time() - self.start_time).__round__(2)
             if self.time_limit:
-                self.tab.tk_label_operation_timeout_limit.config(text=f"定时{self.time_limit}秒结束"+
-                                                                f"\n还剩下{int(self.time_limit-self.time_count)} 秒")
+                self.ui.after(0, lambda: self.tab.tk_label_operation_timeout_limit.config(
+                    text=f"定时{self.time_limit}秒结束" + f"\n还剩下{int(self.time_limit - self.time_count)} 秒"))
                 if self.time_count >= self.time_limit:
-                    self.tab.tk_label_operation_timeout_limit.config(text="定时结束,已停止扫描")
+                    self.ui.after(0, lambda: self.tab.tk_label_operation_timeout_limit.config(text="定时结束,已停止扫描"))
                     self.ui.deiconify()
-                    self.stop_scanning()  # 达到定时停止时间，停止扫描
+                    self.ui.after(0, lambda: self.stop_scanning())  # 达到定时停止时间，停止扫描
 
             self.scan_count += 1
             if self.scan_limit:
-                self.tab.tk_label_operation_timeout_limit.config(text=f"预计扫描{self.scan_limit}次"+
-                                                                f"\n还剩下{self.scan_limit-self.scan_count} 次")
+                self.ui.after(0, lambda: self.tab.tk_label_operation_timeout_limit.config(
+                    text=f"预计扫描{self.scan_limit}次" + f"\n还剩下{self.scan_limit - self.scan_count} 次"))
                 if self.scan_count >= self.scan_limit:
-                    self.tab.tk_label_operation_timeout_limit.config(text="次数到达,已停止扫描")
+                    self.ui.after(0, lambda: self.tab.tk_label_operation_timeout_limit.config(text="次数到达,已停止扫描"))
                     self.ui.deiconify()
-                    self.stop_scanning()  # 达到扫描次数限制，停止扫描
+                    self.ui.after(0, lambda: self.stop_scanning())  # 达到扫描次数限制，停止扫描
 
             # 调整循环次数
             if max_loops is not None:
@@ -719,12 +728,43 @@ class TabController:
 
             # 继续循环扫描
             if max_loops is None or max_loops > 0:
-                self.ui.after(self.scan_interval, lambda: self.scan_loop(target_image, photo_address, chosen_index, max_loops))
+                self.ui.after(self.scan_interval, lambda: self.scan_loop(target, photo_address, chosen_index, max_loops))
             else:
-                self.stop_scanning()
+                self.ui.after(0, lambda: self.stop_scanning())
+
+    #单次检查扫描(用于检查是否成功执行)
+    def check_scan(self, load_target, photo_address):
+        # 检查地址内容check_
+        screenshot=None
+        if photo_address == [0, 0, 0, 0]:
+            return False
+        active_window = gw.getActiveWindow()
+        if active_window:
+            if self.process_name and self.process_name not in active_window.title:
+                return False  # 不执行操作
+        x1, y1, x2, y2 = photo_address
+        screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2))
+        screen_region = np.array(screenshot)
+        # 判断target_image类型,如果是图片(numpy.ndarray)则进行图像处理,否则进行OCR识别
+        result_found = False
+        if isinstance(load_target, np.ndarray):
+            result = self.compare_images_with_template_matching(screen_region,load_target, photo_address)
+            if result:
+                result_found = True
+            else:
+                result_found = False
+        else:
+            ocr_result = self.compare_text_with_ocr(screenshot,load_target,photo_address)
+            if ocr_result:  # 判断识别文字是否包含目标文字
+                result_found = True
+            else:
+                result_found = False
+        # 关闭截图资源
+        screenshot.close()
+        return result_found
 
     # 框选/截图窗口代码
-    def open_manual_selection_window(self, evt, grab_photo=False):
+    def open_manual_selection_window(self, evt, grab_photo=False,localentry = None):
         self.ui.iconify()  # 将主窗口最小化
         self.manual_selection_window = tk.Toplevel(self.ui)  # 创建一个新的Toplevel窗口
         self.manual_selection_window.attributes('-alpha', 0.3)
@@ -740,19 +780,22 @@ class TabController:
         def on_release_select(event):
             self.end_x = event.x  # 记录鼠标释放时的横坐标
             self.end_y = event.y  # 记录鼠标释放时的纵坐标
-            self.manual_select_mode = False  # 退出手动框选模式
-            self.tab.tk_label_photo_start_label.config(text=f"({self.start_x},{self.start_y})")
-            self.tab.tk_label_photo_end_label.config(text=f"({self.end_x},{self.end_y})")
-            # 检查并自动将图片地址保存到 selection_address
-            for address_index in range(4):
-                if self.selection_address[address_index] == [0, 0, 0, 0]:
-                    # 更新对应的地址
-                    self.selection_address[address_index] = [self.start_x, self.start_y, self.end_x, self.end_y]
-                    # 更新地址显示
-                    self.tab.tk_select_box_photo_address.set(f"地址{address_index + 1}")
-                    # 调用保存地址变化的方法
-                    self.address_change(evt, change_type="save")
-                    break  # 退出循环，因为只需要处理第一个符合条件的地址
+            if localentry is None:
+                self.tab.tk_label_photo_start_label.config(text=f"({self.start_x},{self.start_y})")
+                self.tab.tk_label_photo_end_label.config(text=f"({self.end_x},{self.end_y})")
+                # 检查并自动将图片地址保存到 selection_address
+                for address_index in range(4):
+                    if self.selection_address[address_index] == [0, 0, 0, 0]:
+                        # 更新对应的地址
+                        self.selection_address[address_index] = [self.start_x, self.start_y, self.end_x, self.end_y]
+                        # 更新地址显示
+                        self.tab.tk_select_box_photo_address.set(f"地址{address_index + 1}")
+                        # 调用保存地址变化的方法
+                        self.address_change(evt, change_type="save")
+                        break  # 退出循环，因为只需要处理第一个符合条件的地址
+            else:
+                localentry[0].delete(0, tk.END)
+                localentry[0].insert(0, f"[{self.start_x},{self.start_y},{self.end_x},{self.end_y}]")
             self.manual_selection_window.destroy()
             if grab_photo:  # 如果需要截图
                 x1, y1 = min(self.start_x, self.end_x), min(self.start_y, self.end_y)
@@ -767,6 +810,8 @@ class TabController:
                     self.tab.photo_input[0].insert(0, file_path)
 
             self.ui.deiconify()  # 恢复最小化的之前的界面
+            if localentry is not None:
+                localentry[1].deiconify()
             self.save_photos()
 
         def draw_drag_line(event):
@@ -998,36 +1043,133 @@ class TabController:
         drag_window.focus_set()
 
 
-
     # 添加等待操作窗口
     def add_wait_operation_window(self, position):
-        # 打开等待时间窗口并记录等待时间
+        # 打开等待操作窗口
         wait_window = tk.Toplevel(self.ui)
-        wait_window.title("等待时间")
-        wait_window.geometry("300x150")
+        wait_window.title("等待操作")
+        wait_window.geometry("350x300")
         wait_window.lift()
         wait_window.focus_set()
 
-        wait_label = tk.Label(wait_window, text="请输入等待时间(毫秒):")
+        # 等待时间选择
+        wait_type = tk.StringVar(value="time")  # 默认选择等待时间
+
+        wait_label = tk.Label(wait_window, text="请选择等待类型:")
         wait_label.pack(pady=5)
 
-        wait_entry = tk.Entry(wait_window)
-        wait_entry.pack(pady=5)
+        # 选择等待方式（时间或扫描成功）
+        time_radio = tk.Radiobutton(wait_window, text="固定等待时间", variable=wait_type, value="time")
+        time_radio.pack(pady=5)
 
-        def confirm_wait():
+        scan_radio = tk.Radiobutton(wait_window, text="等待识别成功", variable=wait_type, value="scan")
+        scan_radio.pack(pady=5)
+
+        # 固定等待时间
+        def show_time_wait():
+            time_frame.pack(pady=5)
+            scan_frame.pack_forget()
+
+        # 等待扫描成功
+        def show_scan_wait():
+            scan_frame.pack(pady=5)
+            time_frame.pack_forget()
+
+        wait_type.trace("w", lambda *args: show_time_wait() if wait_type.get() == "time" else show_scan_wait())
+
+        # 固定时间输入框
+        time_frame = tk.Frame(wait_window)
+        time_input_frame = tk.Frame(time_frame)
+        time_label = tk.Label(time_input_frame, text="等待(毫秒):")
+        time_label.pack(side="left", padx=5)
+        times_entry = tk.Entry(time_input_frame)
+        times_entry.pack(side="left", padx=5)
+        time_input_frame.pack(pady=5)
+
+        def confirm_time_wait():
             try:
-                wait_time = int(wait_entry.get())
-            except:
-                tk.messagebox.showwarning("警告", "输入的并非数字！")
+                wait_time = int(times_entry.get())
+                self.operations.insert(position, f"等待:{wait_time}ms")
+                self.save_operations()
+                self.populate_operation_list()
+                wait_window.destroy()
+            except ValueError:
+                tk.messagebox.showwarning("警告", "请输入有效的数字!")
+
+        time_button = tk.Button(time_frame, text="确认", command=confirm_time_wait)
+        time_button.pack(pady=5)
+
+        # 扫描成功等待输入框与选择图片按钮
+        scan_frame = tk.Frame(wait_window)
+        scan_input_frame = tk.Frame(scan_frame)
+        scan_label = tk.Label(scan_input_frame, text="图文:")
+        scan_label.pack(side="left", padx=5)
+        scan_entry = tk.Entry(scan_input_frame)
+        scan_entry.pack(side="left", padx=5)
+
+        def browse_file():
+            file_path = filedialog.askopenfilename(title="选择扫描图片", filetypes=[("JPG", "*.jpg"),("PNG", "*.png")])
+            if file_path:
+                scan_entry.delete(0, tk.END)
+                scan_entry.insert(0, file_path)
+
+        browse_button = tk.Button(scan_input_frame, text="浏览", command=browse_file)
+        browse_button.pack(side="left", padx=5)
+        scan_input_frame.pack(pady=5)
+
+        def select_scan_region():
+            wait_window.iconify()
+            self.open_manual_selection_window(evt=None,localentry=[location_entry,wait_window])
+        # 扫描位置与等待时间
+        location_frame = tk.Frame(scan_frame)
+        location_label = tk.Label(location_frame, text="地址:")
+        location_label.pack(side="left", padx=5)
+        location_entry = tk.Entry(location_frame)
+        location_entry.pack(side="left", padx=5)
+        scan_button = tk.Button(location_frame, text="框选", command=select_scan_region)
+        scan_button.pack(side="left", padx=5)
+        location_frame.pack(pady=5)
+
+        long_time_frame = tk.Frame(scan_frame)
+        time_label = tk.Label(long_time_frame, text="最长等待(秒):")
+        time_label.pack(side="left", padx=5)
+        time_entry = tk.Entry(long_time_frame)
+        time_entry.insert(0,10)
+        time_entry.pack(side="left", padx=5)
+        long_time_frame.pack(pady=5)
+
+
+        # 框选扫描区域和确认按钮
+        scan_button_frame = tk.Frame(scan_frame)
+        def confirm_scan_wait():
+            scan_image = scan_entry.get()
+            location = location_entry.get()
+            max_wait_time = time_entry.get()
+            # 检查是否有输入
+            if not scan_image:
+                tk.messagebox.showwarning("警告", "请输入扫描图片路径!")
                 return
-            # 直接在这里处理等待操作,避免调用额外的函数
-            self.operations.insert(position, f"等待:{wait_time}ms")
+            if not location:
+                tk.messagebox.showwarning("警告", "请输入扫描位置!")
+                return
+            if not max_wait_time.isdigit():
+                tk.messagebox.showwarning("警告", "请输入有效的最长等待时间!")
+                return
+
+            # 将扫描图像、位置和最长等待时间组合成一个格式化字符串
+            wait_instruction = f"等待：{scan_image}||{location}||{max_wait_time}"
+            # 将结果插入操作列表并更新UI
+            self.operations.insert(position, wait_instruction)
             self.save_operations()
             self.populate_operation_list()
             wait_window.destroy()
 
-        wait_button = tk.Button(wait_window, text="确认", command=confirm_wait)
-        wait_button.pack(pady=5)
+        scan_button_confirm = tk.Button(scan_button_frame, text="确认", command=confirm_scan_wait)
+        scan_button_confirm.pack(side="left", padx=5)
+
+        scan_button_frame.pack(pady=5)
+
+        show_time_wait()
 
     # 添加滚轮操作窗口
     def add_scroll_operation_window(self, position):
@@ -1349,243 +1491,261 @@ class TabController:
 #执行操作代码
     # 执行操作函数
     def execute_operations(self):
-        for operation in self.operations:
-            if operation.startswith("等待"):
-                wait_time = int(operation.split(":")[1].strip("ms"))
-                time.sleep(wait_time / 1000)  # Convert milliseconds to seconds and wait
-            elif operation.startswith("滚轮"):
-                scroll_time = int(operation.split(":")[1].strip("步"))
-                pyautogui.scroll(scroll_time)  # 执行滚轮
-            elif operation.startswith("键盘操作"):
-                key_map = {
-                'Control_L': 'ctrl',
-                'Control_R': 'ctrl',
-                'Shift_L': 'shift',
-                'Shift_R': 'shift',
-                'Alt_L': 'alt',
-                'Alt_R': 'alt',
-                'Caps_Lock': 'capslock',
-                'Return': 'enter',
-                'BackSpace': 'backspace',
-                'Tab': 'tab',
-                'Escape': 'esc',
-                'space': 'space',
-                'period': '.',
-                'comma': ',',
-                'exclam': '!',
-                'at': '@',
-                'numbersign': '#',
-                'dollar': '$',
-                'percent': '%',
-                'ampersand': '&',
-                'quote': "'",
-                'doublequote': '"',
-                'colon': ':',
-                'semicolon': ';',
-                'less': '<',
-                'greater': '>',
-                'question': '?',
-                'bracketleft': '[',
-                'bracketright': ']',
-                'braceleft': '{',
-                'braceright': '}',
-                'parenleft': '(',
-                'parenright': ')',
-                'Return': 'enter',
-                'slash': '/',
-                'grave': '`',
-                'asciitilde': '~',
-                'minus': '-',
-                'underscore': '_',
-                'equal': '=',
-                'plus': '+',
-                'asterisk': '*',
-                'bar': '|',
-                'Up': 'up',
-                'Down': 'down',
-                'Left': 'left',
-                'Right': 'right',
-                'Win_L': 'win',
-                'Win_R': 'win',
-                # 添加更多需要的特殊键
-                }
-                # 分割操作类型和按键信息
-                operation_details = operation.split(":")
-                if len(operation_details) == 2:
-                    key_info = operation_details[1]  # 获取按键信息部分,例如 10秒-[Shift]+[Ctrl]
-                    # 如果包含 "秒" 则是长按模式
-                    if "秒" in key_info:
-                        # 解析长按时间和按键
-                        long_press_time, keys = key_info.split("-")
-                        long_press_time = int(long_press_time.replace("秒", "").strip())  # 提取长按时间
-                        # 处理按键,如果是多按,则按下每个按键
-                        if "+" in keys:
-                            pressed_keys = keys.split("+")
-                            # 使用映射后的键名同时按下每个按键
-                            pyautogui.hotkey(*[key_map.get(key.strip("[]"), key.strip("[]")) for key in pressed_keys])  # 按下所有组合键
-                            time.sleep(long_press_time)  # 持续按键的时间
-                        else:
-                            # 单个按键的长按
-                            pyautogui.keyDown(key_map.get(keys.strip("[]"), keys.strip("[]")))  # 长按键
-                            time.sleep(long_press_time)  # 按键长按的时间
-                            pyautogui.keyUp(key_map.get(keys.strip("[]"), keys.strip("[]")))  # 释放键
+        try:
+            for operation in self.operations:
+                if operation.startswith("等待"):
+                    if "||" not in operation:
+                        # 旧的格式，等待时间(ms)
+                        wait_time = int(operation.split(":")[1].strip("ms"))
+                        time.sleep(wait_time / 1000)  # Convert milliseconds to seconds and wait
                     else:
-                        # 多按模式
-                        if "+" in key_info:
-                            pressed_keys = key_info.split("+")
-                            # 使用映射后的键名同时按下每个按键
-                            pyautogui.hotkey(*[key_map.get(key.strip("[]"), key.strip("[]")) for key in pressed_keys])  # 按下所有组合键
-                        else:
-                            pyautogui.press(key_map.get(key_info.strip("[]"), key_info.strip("[]")))  # 单个按键
-            elif operation.startswith("鼠标操作"):
-                operation_desc = operation.split(":")[1]  # 获取 "左键-单击-(150,200)" 或 "左键-单击-(0,150,200)"
-                # 判断是否为扫描操作（根据坐标的数字个数判断）
-                parts = operation_desc.split("-")
-                click_type = parts[0]  # "左键"
-                action = parts[1]  # "单击" 或 "长按【10】秒"
-                offset_x = 0
-                offset_y = 0
-                center_x = 0
-                center_y = 0
-                x = 0
-                y = 0
-                # 判断是否为长按,提取时间信息
-                if "长按" in action:
-                    press_time = action.split("【")[1].split("】")[0]  # 获取按压时间(例如 10)
-                    action_type = "long_press"
-                elif "双击" in action:
-                    press_time = None  # 双击不需要按压时间
-                    action_type = "double"
-                else:
-                    press_time = None  # 单击也不需要按压时间
-                    action_type = "single"
-                # 提取坐标部分
-                position = operation_desc.split("-")[-1].strip("()")
-                position_values = tuple(map(int, position.split(",")))  # 转换成元组 (150, 200) 或 (0, 150, 200)
-                if len(position_values) == 3:
-                    # 说明是扫描操作，第一位为扫描区域标识
-                    scan_region_index = position_values[0]  # 例如 0 (表示扫描区域)
-                    x, y = position_values[1], position_values[2]  # 扫描区域的坐标
-                    # 这里可以进行扫描区域的相关操作
-                    max_loc = self.max_loc[scan_region_index]  # 选择对应识别位置的中心
-                    if max_loc != [0, 0, 0, 0]:  # 如果不为空
-                        center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
-                        center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
-                else:
-                    # 普通鼠标操作，坐标只有两个数字
-                    x, y = position_values
-                # 执行鼠标操作
-                if click_type == "左键":
-                    if action_type == "single":
-                        pyautogui.click(center_x + x + offset_x, center_y + y + offset_y)
-                    elif action_type == "double":
-                        pyautogui.doubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
-                    elif action_type == "long_press":
-                        pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y)
-                        pyautogui.sleep(float(press_time))  # 按压一段时间
-                        pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y)
-                elif click_type == "右键":
-                    if action_type == "single":
-                        pyautogui.rightClick(center_x + x + offset_x, center_y + y + offset_y)
-                    elif action_type == "double":
-                        pyautogui.rightDoubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
-                    elif action_type == "long_press":
-                        pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y, button='right')
-                        pyautogui.sleep(float(press_time))  # 按压一段时间
-                        pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y, button='right')
-                elif click_type == "中键":
-                    if action_type == "single":
-                        pyautogui.middleClick(center_x + x + offset_x, center_y + y + offset_y)
-                    elif action_type == "double":
-                        pyautogui.middleDoubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
-                    elif action_type == "long_press":
-                        pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y, button='middle')
-                        pyautogui.sleep(float(press_time))  # 按压一段时间
-                        pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y, button='middle')
-            elif operation.startswith("开启"):
-                chosen_index = int(operation.split("号扫描")[0].strip("开启："))
-                loop_count_string = operation.split("号扫描")[1].split("次")[0].strip()
-                loop_count = int(loop_count_string) if loop_count_string and loop_count_string != 'None' else None
-                self.tab.tk_tabs_first_tab.select(chosen_index)  # 选择对应的标签页
-                selected_child_frame = self.tab.tk_tabs_first_tab.nametowidget(self.tab.tk_tabs_first_tab.select())
-                if loop_count == 1:
-                    selected_child_frame.loop_var.set("循环1次")
-                elif loop_count == 10:
-                    selected_child_frame.loop_var.set("循环10次")
-                elif loop_count is None:
-                    selected_child_frame.loop_var.set("无限循环")
-                selected_child_frame.start_scanning()
-            elif operation.startswith("关闭"):
-                chosen_index = int(operation.split(":")[1].strip("号扫描"))
-                self.ui.tk_tabs_first_tab.select(chosen_index)
-                selected_child_frame = self.tab.tk_tabs_first_tab.nametowidget(self.tab.tk_tabs_first_tab.select())
-                selected_child_frame.stop_scanning()
-                selected_child_frame.scanning_status_label.config(text="未开始扫描")
-            elif operation.startswith("拖动"):
-                # 获取拖动时长和坐标信息
-                operation_data = operation.split(":")[1]  # 获取"拖动:{duration}-{move_type}-{points}"
-                duration_str, move_type, points_str = operation_data.split("-")  # 分离时长和坐标
-                duration = float(duration_str)  # 将时长转换为浮动类型
-                positions = eval(points_str)  # 获取拖动的坐标信息并转换为元组
-                # 计算每个点之间的持续时间
-                num_points = len(positions)
-                time_per_move = round(duration / (num_points - 1),3)*2  # 每次移动的时间
-                # 如果 positions 里面有多个点,按顺序进行逐步移动
-                    # 遍历所有坐标，如果是(0, 0, 0)的格式，将其特殊处理
-                processed_positions = []
-                if len(positions) == 2:
-                    for pos in positions:
-                        # 如果坐标是三个值，检查是否为(0, 0, 0)
-                        if len(pos) == 3:
-                            scan_region_index = pos[0]  # 获取扫描区域标识
-                            x, y = pos[1], pos[2]  # 获取坐标
-                            # 通过扫描区域标识获取 max_loc
-                            max_loc = self.max_loc[scan_region_index]  # 获取对应扫描区域的坐标范围
-                            if max_loc != [0, 0, 0, 0]:  # 如果该区域存在有效坐标
-                                # 计算该区域的中心点坐标
-                                center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
-                                center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
-                                # 将计算出的中心点坐标替换原坐标
-                                processed_positions.append((center_x + x, center_y + y))
+                        # 新的格式，拆解图像路径、扫描地址和最大等待时间
+                        parts = operation.split("||")
+                        scan_image = parts[0].split("：")[1].strip()  # 获取扫描图像路径
+                        photo_address = eval(parts[1].strip())  # 转换扫描地址为列表
+                        max_wait_time = int(parts[2].strip())  # 获取最长等待时间（秒）
+                        # 开始等待操作，进行循环检查
+                        start_time = time.time()
+                        target_image = self.load_target_image(scan_image)
+                        while time.time() - start_time < max_wait_time:
+                            # 调用 check_scan 函数来进行扫描检查
+                            if self.check_scan(target_image, photo_address):
+                                break
+                            time.sleep(0.1)  # 每次等待1秒再检查一次
+                elif operation.startswith("滚轮"):
+                    scroll_time = int(operation.split(":")[1].strip("步"))
+                    pyautogui.scroll(scroll_time)  # 执行滚轮
+                elif operation.startswith("键盘操作"):
+                    key_map = {
+                    'Control_L': 'ctrl',
+                    'Control_R': 'ctrl',
+                    'Shift_L': 'shift',
+                    'Shift_R': 'shift',
+                    'Alt_L': 'alt',
+                    'Alt_R': 'alt',
+                    'Caps_Lock': 'capslock',
+                    'Return': 'enter',
+                    'BackSpace': 'backspace',
+                    'Tab': 'tab',
+                    'Escape': 'esc',
+                    'space': 'space',
+                    'period': '.',
+                    'comma': ',',
+                    'exclam': '!',
+                    'at': '@',
+                    'numbersign': '#',
+                    'dollar': '$',
+                    'percent': '%',
+                    'ampersand': '&',
+                    'quote': "'",
+                    'doublequote': '"',
+                    'colon': ':',
+                    'semicolon': ';',
+                    'less': '<',
+                    'greater': '>',
+                    'question': '?',
+                    'bracketleft': '[',
+                    'bracketright': ']',
+                    'braceleft': '{',
+                    'braceright': '}',
+                    'parenleft': '(',
+                    'parenright': ')',
+                    'Return': 'enter',
+                    'slash': '/',
+                    'grave': '`',
+                    'asciitilde': '~',
+                    'minus': '-',
+                    'underscore': '_',
+                    'equal': '=',
+                    'plus': '+',
+                    'asterisk': '*',
+                    'bar': '|',
+                    'Up': 'up',
+                    'Down': 'down',
+                    'Left': 'left',
+                    'Right': 'right',
+                    'Win_L': 'win',
+                    'Win_R': 'win',
+                    # 添加更多需要的特殊键
+                    }
+                    # 分割操作类型和按键信息
+                    operation_details = operation.split(":")
+                    if len(operation_details) == 2:
+                        key_info = operation_details[1]  # 获取按键信息部分,例如 10秒-[Shift]+[Ctrl]
+                        # 如果包含 "秒" 则是长按模式
+                        if "秒" in key_info:
+                            # 解析长按时间和按键
+                            long_press_time, keys = key_info.split("-")
+                            long_press_time = int(long_press_time.replace("秒", "").strip())  # 提取长按时间
+                            # 处理按键,如果是多按,则按下每个按键
+                            if "+" in keys:
+                                pressed_keys = keys.split("+")
+                                # 使用映射后的键名同时按下每个按键
+                                pyautogui.hotkey(*[key_map.get(key.strip("[]"), key.strip("[]")) for key in pressed_keys])  # 按下所有组合键
+                                time.sleep(long_press_time)  # 持续按键的时间
                             else:
-                                # 如果该区域无效，则继续使用原始坐标
-                                processed_positions.append((x, y))
+                                # 单个按键的长按
+                                pyautogui.keyDown(key_map.get(keys.strip("[]"), keys.strip("[]")))  # 长按键
+                                time.sleep(long_press_time)  # 按键长按的时间
+                                pyautogui.keyUp(key_map.get(keys.strip("[]"), keys.strip("[]")))  # 释放键
                         else:
-                            # 如果坐标是 (x, y)，直接使用原坐标
-                            processed_positions.append(pos)
-                else:
-                    # 如果 positions 中有多个点，不进行坐标解析，直接使用原坐标
-                    processed_positions = positions
-                positions = processed_positions
-                if move_type == "drag":
-                    # 如果是拖动,按下鼠标并进行拖动
-                    pyautogui.moveTo(positions[0][0], positions[0][1], duration=0.001)
-                    pyautogui.mouseDown()  # 模拟按下鼠标(开始拖动)
-                    for i in range(0, num_points, 2):  # 每隔一个点选择一次
-                        if i + 1 < num_points:
-                            pyautogui.moveTo(positions[i + 1][0], positions[i + 1][1], duration=time_per_move)  # 每次移动时间
-                    # 最后释放鼠标(结束拖动)
-                    pyautogui.mouseUp()
-                elif move_type == "move":
-                    # 如果是移动,不按下鼠标也不抬起鼠标
-                    pyautogui.moveTo(positions[0][0], positions[0][1], duration=0.001)
-                    for i in range(0, num_points, 2):  # 每隔一个点选择一次
-                        if i + 1 < num_points:
-                            pyautogui.moveTo(positions[i + 1][0], positions[i + 1][1], duration=time_per_move)
+                            # 多按模式
+                            if "+" in key_info:
+                                pressed_keys = key_info.split("+")
+                                # 使用映射后的键名同时按下每个按键
+                                pyautogui.hotkey(*[key_map.get(key.strip("[]"), key.strip("[]")) for key in pressed_keys])  # 按下所有组合键
+                            else:
+                                pyautogui.press(key_map.get(key_info.strip("[]"), key_info.strip("[]")))  # 单个按键
+                elif operation.startswith("鼠标操作"):
+                    operation_desc = operation.split(":")[1]  # 获取 "左键-单击-(150,200)" 或 "左键-单击-(0,150,200)"
+                    # 判断是否为扫描操作（根据坐标的数字个数判断）
+                    parts = operation_desc.split("-")
+                    click_type = parts[0]  # "左键"
+                    action = parts[1]  # "单击" 或 "长按【10】秒"
+                    offset_x = 0
+                    offset_y = 0
+                    center_x = 0
+                    center_y = 0
+                    x = 0
+                    y = 0
+                    # 判断是否为长按,提取时间信息
+                    if "长按" in action:
+                        press_time = action.split("【")[1].split("】")[0]  # 获取按压时间(例如 10)
+                        action_type = "long_press"
+                    elif "双击" in action:
+                        press_time = None  # 双击不需要按压时间
+                        action_type = "double"
+                    else:
+                        press_time = None  # 单击也不需要按压时间
+                        action_type = "single"
+                    # 提取坐标部分
+                    position = operation_desc.split("-")[-1].strip("()")
+                    position_values = tuple(map(int, position.split(",")))  # 转换成元组 (150, 200) 或 (0, 150, 200)
+                    if len(position_values) == 3:
+                        # 说明是扫描操作，第一位为扫描区域标识
+                        scan_region_index = position_values[0]  # 例如 0 (表示扫描区域)
+                        x, y = position_values[1], position_values[2]  # 扫描区域的坐标
+                        # 这里可以进行扫描区域的相关操作
+                        max_loc = self.max_loc[scan_region_index]  # 选择对应识别位置的中心
+                        if max_loc != [0, 0, 0, 0]:  # 如果不为空
+                            center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
+                            center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
+                    else:
+                        # 普通鼠标操作，坐标只有两个数字
+                        x, y = position_values
+                    # 执行鼠标操作
+                    if click_type == "左键":
+                        if action_type == "single":
+                            pyautogui.click(center_x + x + offset_x, center_y + y + offset_y)
+                        elif action_type == "double":
+                            pyautogui.doubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
+                        elif action_type == "long_press":
+                            pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y)
+                            pyautogui.sleep(float(press_time))  # 按压一段时间
+                            pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y)
+                    elif click_type == "右键":
+                        if action_type == "single":
+                            pyautogui.rightClick(center_x + x + offset_x, center_y + y + offset_y)
+                        elif action_type == "double":
+                            pyautogui.rightDoubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
+                        elif action_type == "long_press":
+                            pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y, button='right')
+                            pyautogui.sleep(float(press_time))  # 按压一段时间
+                            pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y, button='right')
+                    elif click_type == "中键":
+                        if action_type == "single":
+                            pyautogui.middleClick(center_x + x + offset_x, center_y + y + offset_y)
+                        elif action_type == "double":
+                            pyautogui.middleDoubleClick(center_x + x + offset_x, center_y + y + offset_y, interval=0.1)
+                        elif action_type == "long_press":
+                            pyautogui.mouseDown(center_x + x + offset_x, center_y + y + offset_y, button='middle')
+                            pyautogui.sleep(float(press_time))  # 按压一段时间
+                            pyautogui.mouseUp(center_x + x + offset_x, center_y + y + offset_y, button='middle')
+                elif operation.startswith("开启"):
+                    chosen_index = int(operation.split("号扫描")[0].strip("开启："))
+                    loop_count_string = operation.split("号扫描")[1].split("次")[0].strip()
+                    loop_count = int(loop_count_string) if loop_count_string and loop_count_string != 'None' else None
+                    self.tab.tk_tabs_first_tab.select(chosen_index)  # 选择对应的标签页
+                    selected_child_frame = self.tab.tk_tabs_first_tab.nametowidget(self.tab.tk_tabs_first_tab.select())
+                    if loop_count == 1:
+                        selected_child_frame.loop_var.set("循环1次")
+                    elif loop_count == 10:
+                        selected_child_frame.loop_var.set("循环10次")
+                    elif loop_count is None:
+                        selected_child_frame.loop_var.set("无限循环")
+                    selected_child_frame.start_scanning()
+                elif operation.startswith("关闭"):
+                    chosen_index = int(operation.split(":")[1].strip("号扫描"))
+                    self.ui.tk_tabs_first_tab.select(chosen_index)
+                    selected_child_frame = self.tab.tk_tabs_first_tab.nametowidget(self.tab.tk_tabs_first_tab.select())
+                    selected_child_frame.stop_scanning()
+                    selected_child_frame.scanning_status_label.config(text="未开始扫描")
+                elif operation.startswith("拖动"):
+                    # 获取拖动时长和坐标信息
+                    operation_data = operation.split(":")[1]  # 获取"拖动:{duration}-{move_type}-{points}"
+                    duration_str, move_type, points_str = operation_data.split("-")  # 分离时长和坐标
+                    duration = float(duration_str)  # 将时长转换为浮动类型
+                    positions = eval(points_str)  # 获取拖动的坐标信息并转换为元组
+                    # 计算每个点之间的持续时间
+                    num_points = len(positions)
+                    time_per_move = round(duration / (num_points - 1),3)*2  # 每次移动的时间
+                    # 如果 positions 里面有多个点,按顺序进行逐步移动
+                        # 遍历所有坐标，如果是(0, 0, 0)的格式，将其特殊处理
+                    processed_positions = []
+                    if len(positions) == 2:
+                        for pos in positions:
+                            # 如果坐标是三个值，检查是否为(0, 0, 0)
+                            if len(pos) == 3:
+                                scan_region_index = pos[0]  # 获取扫描区域标识
+                                x, y = pos[1], pos[2]  # 获取坐标
+                                # 通过扫描区域标识获取 max_loc
+                                max_loc = self.max_loc[scan_region_index]  # 获取对应扫描区域的坐标范围
+                                if max_loc != [0, 0, 0, 0]:  # 如果该区域存在有效坐标
+                                    # 计算该区域的中心点坐标
+                                    center_x = int((max_loc[0][0] + max_loc[1][0]) / 2)
+                                    center_y = int((max_loc[0][1] + max_loc[1][1]) / 2)
+                                    # 将计算出的中心点坐标替换原坐标
+                                    processed_positions.append((center_x + x, center_y + y))
+                                else:
+                                    # 如果该区域无效，则继续使用原始坐标
+                                    processed_positions.append((x, y))
+                            else:
+                                # 如果坐标是 (x, y)，直接使用原坐标
+                                processed_positions.append(pos)
+                    else:
+                        # 如果 positions 中有多个点，不进行坐标解析，直接使用原坐标
+                        processed_positions = positions
+                    positions = processed_positions
+                    if move_type == "drag":
+                        # 如果是拖动,按下鼠标并进行拖动
+                        pyautogui.moveTo(positions[0][0], positions[0][1], duration=0.001)
+                        pyautogui.mouseDown()  # 模拟按下鼠标(开始拖动)
+                        for i in range(0, num_points, 2):  # 每隔一个点选择一次
+                            if i + 1 < num_points:
+                                pyautogui.moveTo(positions[i + 1][0], positions[i + 1][1], duration=time_per_move)  # 每次移动时间
+                        # 最后释放鼠标(结束拖动)
+                        pyautogui.mouseUp()
+                    elif move_type == "move":
+                        # 如果是移动,不按下鼠标也不抬起鼠标
+                        pyautogui.moveTo(positions[0][0], positions[0][1], duration=0.001)
+                        for i in range(0, num_points, 2):  # 每隔一个点选择一次
+                            if i + 1 < num_points:
+                                pyautogui.moveTo(positions[i + 1][0], positions[i + 1][1], duration=time_per_move)
 
-        if self.execution_method == "script_done":
-            self.execution_count += 1 # 记录执行成功次数
+            if self.execution_method == "script_done":
+                self.execution_count += 1 # 记录执行成功次数
 
-        self.tab.tk_label_operation_times.config(text=f"运行完成{self.execution_count}次")
-
-        if self.execution_limit:
-            self.tab.tk_label_operation_timeout_limit.config(text=f"预计执行{self.execution_limit}次"+
-                                                            f"\n还剩下{self.execution_limit-self.execution_count} 次")
-            if self.execution_count >= self.execution_limit:
-                self.tab.tk_label_operation_timeout_limit.config(text="次数到达,已停止扫描")
-                self.ui.deiconify()
-                self.stop_scanning()  # 达到扫描次数限制，停止扫描
-        pass
+            self.ui.after(0, lambda: self.tab.tk_label_operation_times.config(text=f"运行完成{self.execution_count}次"))
+            # 更新执行次数限制
+            if self.execution_limit:
+                self.ui.after(0, lambda: self.tab.tk_label_operation_timeout_limit.config(text=f"预计执行{self.execution_limit}次\n还剩下{self.execution_limit - self.execution_count} 次"))
+                # 达到执行次数限制，停止扫描
+                if self.execution_count >= self.execution_limit:
+                    self.ui.after(0, lambda: self.tab.tk_label_operation_timeout_limit.config(text="次数到达,已停止扫描"))
+                    self.ui.after(0, lambda: self.ui.deiconify())
+                    self.ui.after(0, lambda: self.stop_scanning())
+        finally:
+            self.is_executing = False  # 操作完成，设置为 False
 
 
 
