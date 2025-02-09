@@ -428,7 +428,7 @@ class TabGUI(Frame):
             tk_table.column(text, anchor='center', width=width, stretch=False)  # stretch 不自动拉伸
 
         tk_table.place(x=1, y=1, width=575, height=192)
-        self.create_bar(parent, tk_table, True, False, 1, 1, 575, 192, 577, 398)
+        self.create_bar(parent, tk_table, True, False, 1, 1, 575, 180, 577, 398)
         return tk_table
 
     def __tk_button_save_operation_button(self, parent):
@@ -635,13 +635,13 @@ class TabGUI(Frame):
         # 确认地址
         self.tk_select_box_photo_address.bind('<<ComboboxSelected>>',self.ctl.confirm_address_selection)
         # 4号图片位置
-        self.photo_browser_button[3].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 4))
+        self.photo_browser_button[3].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 3))
         # 3号图片位置
-        self.photo_browser_button[2].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 3))
+        self.photo_browser_button[2].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 2))
         # 2号图片位置
-        self.photo_browser_button[1].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 2))
+        self.photo_browser_button[1].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 1))
         # 1号图片位置
-        self.photo_browser_button[0].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 1))
+        self.photo_browser_button[0].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 0))
 
         # 单独图片保存
         self.tk_button_save_photo_button.bind('<Button-1>', self.ctl.save_photo_context)

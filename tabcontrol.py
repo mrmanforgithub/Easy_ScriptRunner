@@ -15,6 +15,7 @@ import re
 import io
 import pygetwindow as gw
 import threading
+from pypinyin import lazy_pinyin
 
 class TabController:
     # 导入UI类后,替换以下的 object 类型,将获得 IDE 属性提示功能
@@ -72,7 +73,7 @@ class TabController:
         self.max_loops = None  # 扫描最大数量
 
         self.scanning = False  # 是否扫描
-        self.is_executing = False
+        self.is_executing = False  #是否执行
 
         self.selection_address = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]] # 四个不同的扫描地址
         self.max_loc = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]  # 四个不同的扫描成功地址
@@ -176,10 +177,9 @@ class TabController:
         selected_item = self.tab.tk_table_operation_box.selection()
         if selected_item:
             selected_index = self.tab.tk_table_operation_box.index(selected_item[0])
+            dele_op = self.operations[selected_index]
             del self.operations[selected_index]
-            self.operation_add(evt, operation_position=selected_index)
-            self.save_operations()
-            self.populate_operation_list()
+            self.operation_add(evt, operation_position=selected_index,dele_op = dele_op)
 
     # 删除操作
     def operation_delete(self, evt):
@@ -192,7 +192,7 @@ class TabController:
             self.populate_operation_list()
 
     # 添加操作
-    def operation_add(self, evt, operation_position=None):
+    def operation_add(self, evt, operation_position=None,dele_op = None):
         self.operation_content = self.tab.tk_select_box_operation_list.get()
         num_rows = len(self.tab.tk_table_operation_box.get_children())
         if operation_position is None:
@@ -200,19 +200,19 @@ class TabController:
         else:
             self.operation_position = operation_position
         if self.operation_content == "等待时间":
-            self.add_wait_operation_window(self.operation_position)
+            self.add_wait_operation_window(self.operation_position,dele_op)
         elif self.operation_content == "键盘操作":
-            self.add_keyboard_operation_window(self.operation_position)
+            self.add_keyboard_operation_window(self.operation_position,dele_op)
         elif self.operation_content == "鼠标操作":
-            self.add_mouse_operation_window(self.operation_position)
+            self.add_mouse_operation_window(self.operation_position,dele_op)
         elif self.operation_content == "鼠标拖动":
-            self.add_drag_operation_window(self.operation_position)
+            self.add_drag_operation_window(self.operation_position,dele_op)
         elif self.operation_content == "滚轮操作":
-            self.add_scroll_operation_window(self.operation_position)
+            self.add_scroll_operation_window(self.operation_position,dele_op)
         elif self.operation_content == "开启扫描":
-            self.add_start_operation_window(self.operation_position)
+            self.add_start_operation_window(self.operation_position,dele_op)
         elif self.operation_content == "关闭扫描":
-            self.add_close_operation_window(self.operation_position)
+            self.add_close_operation_window(self.operation_position,dele_op)
 
     # 图片文件读取
     def scan_browser1_enter(self, evt):
@@ -265,6 +265,64 @@ class TabController:
 
 #工具/造轮子代码
 
+    # 创建绘制曲线窗口
+    def create_drag_window(self, selection_window, move_type, line_type,callback):
+        self.ui.iconify()
+        # 打开记录拖动窗口并且记录拖动起始位置与结束位置
+        pstart = None
+        pend = None
+        points = []  # 用于记录鼠标路径的列表
+        start_time = None
+        drag_window = tk.Toplevel(self.ui)
+        drag_window.attributes('-alpha', 0.2)  # 设置透明度
+        drag_window.attributes('-fullscreen', True)  # 设置全屏
+        drag_window.title("鼠标拖动/滑动")
+        drag_window.wm_attributes('-topmost', 1)
+        canvas = tk.Canvas(drag_window)
+        canvas.pack(fill="both", expand=True)
+
+        def record_start_position(event):
+            nonlocal pstart, start_time
+            pstart = (event.x, event.y)
+            points.append(pstart)  # 记录起始点
+            start_time = time.time()
+
+        def draw_drag_line(event):
+            nonlocal points
+            canvas.delete("all")  # 每次更新时删除旧的画布内容
+            points.append((event.x, event.y))# 记录当前鼠标位置
+            if line_type == "curve":  # 如果是拖动则画曲线
+                canvas.create_line(points, fill='red', width=5, smooth=True)
+            else:  # 否则画直线
+                if len(points) > 1:
+                    canvas.create_line(points[0], (event.x, event.y), fill='red', width=5)
+                    points.remove(points[-1])
+
+        def record_end_position(event):
+            nonlocal pend
+            pend = (event.x, event.y)
+            points.append(pend)  # 记录结束点
+            if line_type == "curve":
+                simplified_points = points[::2]  # 每隔一个点选择一次
+            else:
+                simplified_points = points
+            end_time = time.time()
+            duration = end_time - start_time
+            duration = round(duration, 2)
+
+            # 将拖动操作加入operations
+            callback(f"拖动:{duration}-{move_type}-{simplified_points}")
+            self.ui.deiconify()
+            selection_window.deiconify()
+            time.sleep(0.2)
+            drag_window.destroy()
+
+        drag_window.bind("<Button-1>", record_start_position)  # 记录起始位置
+        drag_window.bind("<B1-Motion>", draw_drag_line)  # 绘制拖动曲线
+        drag_window.bind("<ButtonRelease-1>", record_end_position)  # 记录结束位置
+
+        drag_window.focus_set()
+
     # 添加寻路操作窗口
     def add_pathfinding_operation_window(self, callback):
         # 打开自动寻路窗口并且记录寻路位置偏差
@@ -314,6 +372,7 @@ class TabController:
                                         command=lambda: handle_confirm_click(x_entry, y_entry, combobox))
         pathfinding_button.pack(pady=5)
 
+    # 创建寻路拖动窗口
     def pathfinding_drag_window(self,move_type ,callback):
         pathfinding_window = tk.Toplevel(self.ui)
         pathfinding_window.title("匹配位置拖动")
@@ -514,8 +573,8 @@ class TabController:
             target_image_path_str = filedialog.askopenfilename(title="Select file",
                                                                 filetypes=(
                                                                     ("jpeg files", "*.jpg"), ("all files", "*.*")))
-        self.tab.photo_input[text_box_number-1].delete(0, tk.END)
-        self.tab.photo_input[text_box_number-1].insert(0, target_image_path_str)
+        self.tab.photo_input[text_box_number].delete(0, tk.END)
+        self.tab.photo_input[text_box_number].insert(0, target_image_path_str)
         self.save_photos()
 
     # 选择的图片地址显示出来
@@ -628,8 +687,7 @@ class TabController:
                         return True
                     else:
                         return False
-                else:
-                    return False
+            return False
         else:
             return False
 
@@ -832,11 +890,17 @@ class TabController:
 
         self.manual_selection_window.focus_set()
 
+    def on_close(self,position,dele_op,window):
+        if dele_op is not None:
+            self.operations.insert(position, dele_op)
+            self.save_operations()
+            self.populate_operation_list()
+        window.destroy()
 
 #操作添加窗口代码,为操作添加代码提供可视化窗口,用户在窗口添加参数,代码将参数处理并传递给添加操作代码,将操作添加到operations中
 
     #添加开始操作窗口
-    def add_start_operation_window(self, position):
+    def add_start_operation_window(self, position,dele_op = None):
         # 打开打开操作窗口并且记录打开的扫描
         start_window = tk.Toplevel(self.ui)
         start_window.title("开始扫描")
@@ -874,9 +938,10 @@ class TabController:
 
         confirm_button = tk.Button(start_window, text="确定", command=confirm_selection)
         confirm_button.pack(pady=5)
+        start_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op,start_window))
 
     # 添加等待操作窗口
-    def add_close_operation_window(self, position):
+    def add_close_operation_window(self, position,dele_op = None):
         # 打开关闭扫描窗口并且记录关闭扫描位置
         close_window = tk.Toplevel(self.ui)
         close_window.title("关闭扫描")
@@ -903,9 +968,10 @@ class TabController:
 
         confirm_button = tk.Button(close_window, text="确定", command=confirm_selection)
         confirm_button.pack(pady=5)
+        close_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op, close_window))
 
     # 添加拖动操作窗口
-    def add_drag_operation_window(self, position):
+    def add_drag_operation_window(self, position,dele_op = None):
         # 创建选择操作类型的窗口
         selection_window = tk.Toplevel(self.ui)
         selection_window.title("选择操作类型")
@@ -984,67 +1050,10 @@ class TabController:
         path_button.pack(side=tk.LEFT, padx=20)
 
         selection_window.focus_set()
-
-    def create_drag_window(self, selection_window, move_type, line_type,callback):
-        self.ui.iconify()
-        # 打开记录拖动窗口并且记录拖动起始位置与结束位置
-        pstart = None
-        pend = None
-        points = []  # 用于记录鼠标路径的列表
-        start_time = None
-        drag_window = tk.Toplevel(self.ui)
-        drag_window.attributes('-alpha', 0.2)  # 设置透明度
-        drag_window.attributes('-fullscreen', True)  # 设置全屏
-        drag_window.title("鼠标拖动/滑动")
-        drag_window.wm_attributes('-topmost', 1)
-        canvas = tk.Canvas(drag_window)
-        canvas.pack(fill="both", expand=True)
-
-        def record_start_position(event):
-            nonlocal pstart, start_time
-            pstart = (event.x, event.y)
-            points.append(pstart)  # 记录起始点
-            start_time = time.time()
-
-        def draw_drag_line(event):
-            nonlocal points
-            canvas.delete("all")  # 每次更新时删除旧的画布内容
-            points.append((event.x, event.y))# 记录当前鼠标位置
-            if line_type == "curve":  # 如果是拖动则画曲线
-                canvas.create_line(points, fill='red', width=5, smooth=True)
-            else:  # 否则画直线
-                if len(points) > 1:
-                    canvas.create_line(points[0], (event.x, event.y), fill='red', width=5)
-                    points.remove(points[-1])
-
-        def record_end_position(event):
-            nonlocal pend
-            pend = (event.x, event.y)
-            points.append(pend)  # 记录结束点
-            if line_type == "curve":
-                simplified_points = points[::2]  # 每隔一个点选择一次
-            else:
-                simplified_points = points
-            end_time = time.time()
-            duration = end_time - start_time
-            duration = round(duration, 2)
-
-            # 将拖动操作加入operations
-            callback(f"拖动:{duration}-{move_type}-{simplified_points}")
-            self.ui.deiconify()
-            selection_window.deiconify()
-            time.sleep(0.2)
-            drag_window.destroy()
-
-        drag_window.bind("<Button-1>", record_start_position)  # 记录起始位置
-        drag_window.bind("<B1-Motion>", draw_drag_line)  # 绘制拖动曲线
-        drag_window.bind("<ButtonRelease-1>", record_end_position)  # 记录结束位置
-
-        drag_window.focus_set()
-
+        selection_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op,selection_window))
 
     # 添加等待操作窗口
-    def add_wait_operation_window(self, position):
+    def add_wait_operation_window(self, position,dele_op = None):
         # 打开等待操作窗口
         wait_window = tk.Toplevel(self.ui)
         wait_window.title("等待操作")
@@ -1171,8 +1180,10 @@ class TabController:
 
         show_time_wait()
 
+        wait_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op,wait_window))
+
     # 添加滚轮操作窗口
-    def add_scroll_operation_window(self, position):
+    def add_scroll_operation_window(self, position,dele_op = None):
         # 打开滚轮窗口并记录滚轮步数
         scroll_steps = 0
         scroll_window = tk.Toplevel(self.ui)
@@ -1193,7 +1204,6 @@ class TabController:
             self.operations.insert(position, f"滚轮:{scroll_time}步")
             self.save_operations()
             self.populate_operation_list()
-
             scroll_window.destroy()
 
         scroll_button = tk.Button(scroll_window, text="确认", command=confirm_scroll)
@@ -1210,13 +1220,14 @@ class TabController:
             scroll_entry.insert(0, str(scroll_steps))
 
         scroll_window.bind("<MouseWheel>", on_mouse_wheel)
+            # 添加关闭窗口时的回调
+        scroll_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op,scroll_window))
 
     #添加键盘操作窗口
-    def add_keyboard_operation_window(self, position):
-        # 打开键盘窗口并记录下一个按下的按键
+    def add_keyboard_operation_window(self, position,dele_op = None):
         keyboard_window = tk.Toplevel(self.ui)
         keyboard_window.title("键盘操作")
-        keyboard_window.geometry("340x260")  # 增加窗口高度以容纳所有内容
+        keyboard_window.geometry("340x300")
         keyboard_window.lift()
         keyboard_window.focus_set()
 
@@ -1229,16 +1240,13 @@ class TabController:
         input_entry = tk.Entry(input_frame, width=15)
         input_entry.pack(side=tk.LEFT, padx=5)
 
-        # 添加选择模式
         mode_label = tk.Label(input_frame, text="选择按键模式：")
         mode_label.pack(side=tk.TOP, padx=5)
 
-        mode_var = tk.StringVar(value="single")  # 默认为单点模式
-
+        mode_var = tk.StringVar(value="single")
         mode_frame = tk.Frame(input_frame)
         mode_frame.pack(side=tk.TOP, pady=5)
 
-        # 使用pack以垂直方向排列
         mode_single = tk.Radiobutton(mode_frame, text="单点", variable=mode_var, value="single")
         mode_single.pack(side=tk.TOP, anchor="w")
 
@@ -1251,7 +1259,9 @@ class TabController:
         mode_multi_long = tk.Radiobutton(mode_frame, text="多按长按", variable=mode_var, value="multi_long")
         mode_multi_long.pack(side=tk.TOP, anchor="w")
 
-        # 将长按时间输入框移到mode_frame之外,放到input_frame的下方
+        mode_typing = tk.Radiobutton(mode_frame, text="打字", variable=mode_var, value="typing")
+        mode_typing.pack(side=tk.TOP, anchor="w")
+
         press_frame = tk.Frame(keyboard_window)
         press_frame.pack(pady=5)
         long_press_label = tk.Label(press_frame, text="长按时间(秒):")
@@ -1259,27 +1269,34 @@ class TabController:
 
         long_press_entry = tk.Entry(press_frame, width=10)
         long_press_entry.pack(side=tk.LEFT, padx=5)
+
+        def toggle_long_press_visibility(*args):
+            if mode_var.get() in ["long", "multi_long"]:
+                press_frame.pack(pady=5)
+            else:
+                press_frame.pack_forget()
+
+        mode_var.trace_add("write", toggle_long_press_visibility)
+        toggle_long_press_visibility()
+
         self.key_bind = True
 
         def hand_input():
             if self.key_bind:
-                # 如果已经绑定了事件,则解绑
                 keyboard_window.unbind("<KeyPress>")
                 keyboard_window.unbind("<KeyRelease>")
-                self.key_bind = False  # 更新状态为未绑定
+                self.key_bind = False
                 clear_button.config(text="切换自动输入")
             else:
-                # 如果没有绑定事件,则绑定
                 keyboard_window.bind("<KeyPress>", record_key_press)
                 keyboard_window.bind("<KeyRelease>", record_key_press)
-                self.key_bind = True  # 更新状态为已绑定
-                clear_button.config(text="切换手动输入")
+                self.key_bind = True
+                clear_button.config(text="切换手写输入")
 
         def confirm_input():
             key_sym = input_entry.get()
             long_press_time = long_press_entry.get()
 
-            # 验证长按时间输入
             if mode_var.get() in ["long", "multi_long"] and not long_press_time:
                 tk.messagebox.showwarning("警告", "请输入长按时间！")
                 return
@@ -1288,27 +1305,20 @@ class TabController:
                 tk.messagebox.showwarning("警告", "请输入一个键后再确认！")
                 return
 
-            # 根据选择的模式构造传递的字符串
             if mode_var.get() == "single":
-                # 单点模式
                 formatted_keys = f"[{key_sym}]"
             elif mode_var.get() == "multi":
-                # 多按模式
-                pressed_keys = key_sym.split("+")  # 假设用户输入用 "+" 分隔的多个按键
-                formatted_keys = "+".join([f"[{key}]" for key in pressed_keys])
+                formatted_keys = "+".join([f"[{key}]" for key in key_sym.split("+")])
             elif mode_var.get() == "long":
-                # 长按模式
                 formatted_keys = f"{long_press_time}秒-[{key_sym}]"
             elif mode_var.get() == "multi_long":
-                # 多按长按模式
-                pressed_keys = key_sym.split("+")  # 假设用户输入用 "+" 分隔的多个按键
-                formatted_keys = f"{long_press_time}秒-{' + '.join([f'[{key}]' for key in pressed_keys])}"
+                formatted_keys = f"{long_press_time}秒-{' + '.join([f'[{key}]' for key in key_sym.split('+')])}"
+            elif mode_var.get() == "typing":
+                formatted_keys = f"[({''.join(lazy_pinyin(key_sym))})]"
 
-            # 直接在这里处理键盘操作,避免调用额外的函数
             self.operations.insert(position, f"键盘操作:{formatted_keys}")
             self.save_operations()
             self.populate_operation_list()
-
             keyboard_window.destroy()
 
         button_frame = tk.Frame(keyboard_window)
@@ -1320,34 +1330,30 @@ class TabController:
         clear_button = tk.Button(button_frame, text="切换手动输入", command=hand_input)
         clear_button.pack(side=tk.LEFT, padx=10)
 
-        pressed_keys = []  # 用于存储当前按下的多个按键
+        pressed_keys = []
 
         def record_key_press(event):
             key_sym = event.keysym
-
-            # 根据选择的模式来决定如何记录
             if mode_var.get() in ["single", "long"]:
                 if event.type == tk.EventType.KeyPress:
                     input_entry.delete(0, tk.END)
                     input_entry.insert(tk.END, key_sym)
-                elif event.type == tk.EventType.KeyRelease:
-                    pass
-
             elif mode_var.get() in ["multi", "multi_long"]:
-                if event.type == tk.EventType.KeyPress:
-                    if key_sym not in pressed_keys:
-                        pressed_keys.append(key_sym)  # 记录按下的按键
+                if event.type == tk.EventType.KeyPress and key_sym not in pressed_keys:
+                    pressed_keys.append(key_sym)
                     input_entry.delete(0, tk.END)
-                    input_entry.insert(tk.END, "+".join([f"{key}" for key in pressed_keys]))
-                elif event.type == tk.EventType.KeyRelease:
-                    if key_sym in pressed_keys:
-                        pressed_keys.remove(key_sym)  # 释放时从记录中移除
+                    input_entry.insert(tk.END, "+".join(pressed_keys))
+                elif event.type == tk.EventType.KeyRelease and key_sym in pressed_keys:
+                    pressed_keys.remove(key_sym)
+            elif mode_var.get() == "typing":
+                pass
 
         keyboard_window.bind("<KeyPress>", record_key_press)
         keyboard_window.bind("<KeyRelease>", record_key_press)
+        keyboard_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op,keyboard_window))
 
     # 添加鼠标操作窗口
-    def add_mouse_operation_window(self, position):
+    def add_mouse_operation_window(self, position,dele_op = None):
         # 打开鼠标操作窗口并记录点击位置
         self.ui.iconify()
 
@@ -1452,7 +1458,7 @@ class TabController:
             button_frame = tk.Frame(mouse_window)
             button_frame.pack(pady=10)
 
-            confirm_button = tk.Button(button_frame, text="确认", command=confirm_input)
+            confirm_button = tk.Button(button_frame, text="确认提交", command=confirm_input)
             confirm_button.pack(side=tk.LEFT, padx=5)
 
             # 改为录制点击位置
@@ -1486,6 +1492,7 @@ class TabController:
 
         # 初始化鼠标操作窗口
         mouse_window, click_position_var, click_position_entry = open_mouse_operation_window("", position)  # 初始时点击位置为空
+        mouse_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op,mouse_window))
 
 
 #执行操作代码
@@ -1493,11 +1500,18 @@ class TabController:
     def execute_operations(self):
         try:
             for operation in self.operations:
+                if not self.scanning: #不再扫描的时候,也不再继续执行
+                    break
                 if operation.startswith("等待"):
                     if "||" not in operation:
                         # 旧的格式，等待时间(ms)
                         wait_time = int(operation.split(":")[1].strip("ms"))
-                        time.sleep(wait_time / 1000)  # Convert milliseconds to seconds and wait
+                        start_time = time.time()
+                        sleep_time= (wait_time / 1000)  # Convert milliseconds to seconds and wait
+                        while time.time() - start_time < sleep_time:
+                            if not self.scanning: #防止用户输入过大的数字,所以不再扫描的时候,也不再等待
+                                break
+                            time.sleep(0.1)  # 每次等待0.1秒再检查一次
                     else:
                         # 新的格式，拆解图像路径、扫描地址和最大等待时间
                         parts = operation.split("||")
@@ -1511,7 +1525,9 @@ class TabController:
                             # 调用 check_scan 函数来进行扫描检查
                             if self.check_scan(target_image, photo_address):
                                 break
-                            time.sleep(0.1)  # 每次等待1秒再检查一次
+                            if not self.scanning: #防止用户输入过大的数字,所以不再扫描的时候,也不再等待
+                                break
+                            time.sleep(0.1)
                 elif operation.startswith("滚轮"):
                     scroll_time = int(operation.split(":")[1].strip("步"))
                     pyautogui.scroll(scroll_time)  # 执行滚轮
@@ -1589,13 +1605,14 @@ class TabController:
                                 time.sleep(long_press_time)  # 按键长按的时间
                                 pyautogui.keyUp(key_map.get(keys.strip("[]"), keys.strip("[]")))  # 释放键
                         else:
-                            # 多按模式
-                            if "+" in key_info:
+                            if re.match(r"\[\(.*?\)\]", key_info):  # 检测 `[()]` 形式
+                                text_input = key_info.strip("[]()")  # 去除 `[(``)]`
+                                pyautogui.write(text_input)  # 作为文本输入
+                            elif "+" in key_info:  # 组合按键
                                 pressed_keys = key_info.split("+")
-                                # 使用映射后的键名同时按下每个按键
-                                pyautogui.hotkey(*[key_map.get(key.strip("[]"), key.strip("[]")) for key in pressed_keys])  # 按下所有组合键
-                            else:
-                                pyautogui.press(key_map.get(key_info.strip("[]"), key_info.strip("[]")))  # 单个按键
+                                pyautogui.hotkey(*[key_map.get(key.strip("[]"), key.strip("[]")) for key in pressed_keys])
+                            else:  # 单个按键
+                                pyautogui.press(key_map.get(key_info.strip("[]"), key_info.strip("[]")))
                 elif operation.startswith("鼠标操作"):
                     operation_desc = operation.split(":")[1]  # 获取 "左键-单击-(150,200)" 或 "左键-单击-(0,150,200)"
                     # 判断是否为扫描操作（根据坐标的数字个数判断）
@@ -1721,7 +1738,7 @@ class TabController:
                         pyautogui.moveTo(positions[0][0], positions[0][1], duration=0.001)
                         pyautogui.mouseDown()  # 模拟按下鼠标(开始拖动)
                         for i in range(0, num_points, 2):  # 每隔一个点选择一次
-                            if i + 1 < num_points:
+                            if i + 1 < num_points and self.scanning:
                                 pyautogui.moveTo(positions[i + 1][0], positions[i + 1][1], duration=time_per_move)  # 每次移动时间
                         # 最后释放鼠标(结束拖动)
                         pyautogui.mouseUp()
@@ -1729,7 +1746,7 @@ class TabController:
                         # 如果是移动,不按下鼠标也不抬起鼠标
                         pyautogui.moveTo(positions[0][0], positions[0][1], duration=0.001)
                         for i in range(0, num_points, 2):  # 每隔一个点选择一次
-                            if i + 1 < num_points:
+                            if i + 1 < num_points and self.scanning:
                                 pyautogui.moveTo(positions[i + 1][0], positions[i + 1][1], duration=time_per_move)
 
             if self.execution_method == "script_done":
