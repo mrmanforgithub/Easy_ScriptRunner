@@ -11,14 +11,18 @@
     <img alt="language" src="https://img.shields.io/badge/Language-Python-blue">
     <img alt="platform" src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square&color=4096d8">
 </div>
-这东西没啥含金量，我拿来打游戏日常的，勉强能用（~~代码是到处搬迁学习开源软件的，包括这个readme都是~~）<br>
+这东西没啥含金量，我拿来打游戏日常的，勉强能用（ ~~代码是到处搬迁学习开源软件的，包括这个readme都是~~ ）<br>
 效果和按键精灵类似(但是按键精灵比我这个强大，如果买过大漠插件，就不需要用我这个，去用按键精灵吧)<br>
 
 <br>
 
 </div>
 
-这是个基于 OpenCV 模式匹配图片识别算法的纯粹的 Python 程序，用 Tkinter 写了个 GUI，所以有图形化界面，不至于是控制台黑漆漆的，小白也操作的来（下一步准备用pyqt美化一下，但是感觉重构代码好麻烦所以一直拖）<br>
+<br>
+
+<br>
+
+  这是个基于 OpenCV 模式匹配图片识别算法的纯粹的 Python 程序，用 Tkinter 写了个 GUI，所以有图形化界面，不至于是控制台黑漆漆的，小白也操作的来（下一步准备用pyqt美化一下，但是感觉重构代码好麻烦所以一直拖）<br>
 
 因为作者我的代码能力非常垃圾（软件工程大靴牲特有的代码能力低下），所以写出来的 bug 很多，功能也并不完善。<br>
 但是如果是一些简单的操作，这程序还是有用的罢（存疑）<br>

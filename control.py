@@ -69,8 +69,9 @@ class Controller:
             for operation_index, operation_data in enumerate(self.tabs[tab_index].ctl.operations):
                 page_operations.append({
                     str(operation_index): {
-                        "operation_index": operation_index,
-                        "operation_name": operation_data
+                        "operation_name": operation_data.get("operation_name", ""),
+                        "parameters": operation_data.get("parameters", []),
+                        "operation_text": operation_data.get("operation_text", "")
                     }
                 })
             images = {}

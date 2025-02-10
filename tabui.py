@@ -86,6 +86,8 @@ class TabGUI(Frame):
             self.tk_frame_operation_container)
         # 操作添加按钮
         self.tk_button_operation_add_button = self.__tk_button_operation_add_button(self.tk_frame_operation_container)
+
+        self.tk_button_select_all_button = self.__tk_button_select_all_button(self.tk_frame_operation_container)
         # 操作选择下拉框
         self.tk_select_box_operation_list = self.__tk_select_box_operation_list(self.tk_frame_operation_container)
         # 操作列表表格
@@ -404,7 +406,12 @@ class TabGUI(Frame):
 
     def __tk_button_operation_delete_button(self, parent):
         btn = Button(parent, text="删 除", takefocus=False, bootstyle="default")
-        btn.place(x=1, y=320, width=575, height=63)
+        btn.place(x=144, y=320, width=427, height=63)
+        return btn
+
+    def __tk_button_select_all_button(self, parent):
+        btn = Button(parent, text="全选", takefocus=False, bootstyle="info")
+        btn.place(x=5, y=320, width=130, height=63)
         return btn
 
     def __tk_button_operation_add_button(self, parent):
@@ -421,7 +428,7 @@ class TabGUI(Frame):
 
     def __tk_table_operation_box(self, parent):
         # 表头字段 表头宽度
-        columns = {"id": 114, "操作名称": 114, "操作数据": 401}
+        columns = {"id": 114, "操作名称": 114, "操作参数": 401}
         tk_table = Treeview(parent, show="headings", columns=list(columns), bootstyle="primary")
         for text, width in columns.items():  # 批量设置列属性
             tk_table.heading(text, text=text, anchor='center')
@@ -606,6 +613,7 @@ class TabGUI(Frame):
         return label
 
 
+#工具/轮子代码
     def similar_default_set(self):
         json_file = self.key_setting_path
 
@@ -625,6 +633,41 @@ class TabGUI(Frame):
         else:
             tab_controller.error_print(e)
 
+    #右键显示菜单
+    def show_context_menu(self, event):
+        selected_item = self.tk_table_operation_box.identify_row(event.y)
+        if selected_item:  # 如果点到了某一行
+            self.tk_table_operation_box.selection_set(selected_item)  # 选中该行
+        else:  # 如果没点到任何行
+            self.tk_table_operation_box.selection_remove(self.tk_table_operation_box.selection())  # 取消所有选中项
+            return  # 不显示菜单
+            # 获取当前选中行的索引
+        selected_index = self.tk_table_operation_box.index(selected_item)
+        total_rows = len(self.tk_table_operation_box.get_children())  # 获取总行数
+        context_menu = Menu(self.tk_table_operation_box, tearoff=0)
+        # 向上移动：如果是第一行，禁用
+        if selected_index == 0:
+            context_menu.add_command(label="向上移动", state="disabled")
+        else:
+            context_menu.add_command(label="向上移动", command=self.ctl.operation_up)
+        # 向下移动：如果是最后一行，禁用
+        if selected_index == total_rows - 1:
+            context_menu.add_command(label="向下移动", state="disabled")
+        else:
+            context_menu.add_command(label="向下移动", command=self.ctl.operation_down)
+        context_menu.add_command(label="复制此操作", command=self.ctl.operation_copy)
+        context_menu.add_command(label="修改此操作", command=lambda: self.ctl.operation_change(change_keep=True))
+        context_menu.add_command(label="删除此操作", command=self.ctl.operation_delete)
+        context_menu.post(event.x_root, event.y_root)
+
+    # 当左键选择了空白区域的时候,取消当前选中
+    def clear_select(self, event):
+        selected_item = self.tk_table_operation_box.identify_row(event.y)
+        if not selected_item:  # 如果点到了某一行
+            self.tk_table_operation_box.selection_remove(self.tk_table_operation_box.selection())  # 取消所有选中项
+
+
+#事件绑定代码
     def __event_bind(self):
         #开始扫描
         self.tk_button_start_scanning_button.bind('<Button-1>', self.ctl.start_scanning)
@@ -650,12 +693,18 @@ class TabGUI(Frame):
 
         self.tk_button_process_button.bind('<Button-1>', self.ctl.open_window_selection)
 
+        #绑定右键显示菜单
+        self.tk_table_operation_box.bind('<Button-3>', self.show_context_menu)
+
+        self.tk_table_operation_box.bind('<Button-1>', self.clear_select)
         # 修改操作按钮
         self.tk_button_operation_change_button.bind('<Button-1>', self.ctl.operation_change)
         # 删除操作按钮
         self.tk_button_operation_delete_button.bind('<Button-1>', self.ctl.operation_delete)
         # 添加操作按钮
         self.tk_button_operation_add_button.bind('<Button-1>', self.ctl.operation_add)
+        # 全选操作按钮
+        self.tk_button_select_all_button.bind('<Button-1>', self.ctl.operation_select_all)
         # 单独操作保存
         self.tk_button_save_operation_button.bind('<Button-1>', self.ctl.save_operation_context)
         # 单独操作读取
@@ -737,6 +786,7 @@ class TabGUI(Frame):
         sty.configure(self.new_style(self.tk_button_operation_add_button), font=("微软雅黑", -20, "bold"))
         sty.configure(self.new_style(self.tk_button_save_operation_button), font=("微软雅黑", -15, "bold"))
         sty.configure(self.new_style(self.tk_button_load_operation_button), font=("微软雅黑", -15, "bold"))
+        sty.configure(self.new_style(self.tk_button_select_all_button),font=("微软雅黑", -20, "bold"))
 
         sty.configure(self.new_style(self.tk_label_scan_photo_label), font=("微软雅黑", -20, "bold"))
         sty.configure(self.new_style(self.tk_label_scan_operation_label), font=("微软雅黑", -20, "bold"))
