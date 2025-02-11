@@ -10,7 +10,7 @@ from ToolTip import *
 class TabGUI(Frame):
     ui: object
     def __init__(self, parent, ui):
-        self.parent = parent #父窗口,即主窗口中的tabview控件
+        self.parent = parent #父窗口,即主窗口中的tabview notebook控件
         self.key_setting_path = "setting_json/key_setting.json"
 
         self.ext_tabs_second_tab = self.__ext_tabs_second_tab(parent)
@@ -25,17 +25,16 @@ class TabGUI(Frame):
 
         self.tk_frame_photo_all_container = self.__tk_frame_photo_all_container(self.ext_tabs_second_tab_0)
 
-
-        # 图片相关选项卡,默认四个框,可以填入
-        self.photo_containers = {}
-        for i in range(4):  # 0~3 对应图文1~4
-            self.photo_containers[i] = self.__create_photo_container(self.tk_frame_photo_all_container, i)
-        self.photo_frame = [self.photo_containers[i]['frame'] for i in range(4)]
-        self.photo_label = [self.photo_containers[i]['label'] for i in range(4)]
-        self.photo_input = [self.photo_containers[i]['input_text'] for i in range(4)]
-        self.photo_browser_button = [self.photo_containers[i]['btn'] for i in range(4)]
-        self.photo_scan_box = [self.photo_containers[i]['cb'] for i in range(4)]
-
+        self.tk_frame_photo_text_container = self.__tk_frame_photo_text_container(self.tk_frame_photo_all_container)[1]
+        # 图片相关选项卡,默认是下列几个框,可以修改
+        self.photo_containers= {}
+        self.photo_frame= {}
+        self.photo_label= {}
+        self.photo_input= {}
+        self.photo_browser_button= {}
+        self.photo_scan_box= {}
+        self.containers_count = self.get_container_count()
+        self.bind_container(self.containers_count)
 
         self.photo_if_var = tk.StringVar(value="all")  # 默认选中 "全部满足"
         # 扫描策略的容器
@@ -277,29 +276,127 @@ class TabGUI(Frame):
         frame.place(x=0, y=0, width=577, height=398)
         return frame
 
-    #图片选项卡的重复化内容
-    def __create_photo_container(self, parent, photo_index):
-        # 创建一个容器frame
+    def __tk_frame_photo_text_container(self, parent):
         frame = Frame(parent, bootstyle="default")
-        frame.place(x=10, y=9 + photo_index * 66, width=480, height=61)
+        # 创建Canvas,滚动条和显示内容的Frame
+        canvas = Canvas(frame)
+        scrollbar = Scrollbar(frame, orient="vertical", command=canvas.yview)
+        content_frame = Frame(canvas)
+
+        # 配置Canvas的滚动条
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        # 将content_frame放入canvas中
+        canvas.create_window((0, 0), window=content_frame, anchor="nw")
+        # 自动更新scrollregion
+        def on_frame_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        content_frame.bind("<Configure>", on_frame_configure)
+        def on_mouse_wheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")  # 滚动的速度可以调整
+        canvas.bind_all("<MouseWheel>", on_mouse_wheel)  # Windows系统用 <MouseWheel>
+        # 设置容器的固定大小
+        frame.place(x=0, y=0, width=489, height=274)
+        return [frame,content_frame]
+
+    def update_photo_row(self):
+        address_values = [f"地址{i+1}" for i in range(self.containers_count)]
+        for i in range(self.containers_count):
+            self.photo_scan_box[i]['values'] = address_values
+        self.tk_select_box_photo_address['values'] = address_values
+        for i in range(self.containers_count):
+            self.photo_label[i].config(text=f"图文{i + 1}:")  # 重新设置label的文本
+
+    def delete_selected_row(self, photo_index):
+        text = photo_index.cget("text")
+        photo_index =int(text[-2])-1  # 获取最后一位字符
+        self.photo_containers[photo_index]['frame'].destroy()
+        # 从各个列表中移除对应的元素
+        self.photo_containers.pop(photo_index) # 移除photo_containers中的对应条目
+        self.photo_frame.pop(photo_index)  # 从photo_frame中移除对应的frame
+        self.photo_label.pop(photo_index)  # 从photo_label中移除对应的label
+        self.photo_input.pop(photo_index)  # 从photo_input中移除对应的input_text
+        self.photo_browser_button.pop(photo_index)  # 从photo_browser_button中移除对应的btn
+        self.photo_scan_box.pop(photo_index)  # 从photo_scan_box中移除对应的cb
+        # 更新容器计数
+        self.containers_count -= 1
+        containers = {}
+        for i, (key, container) in enumerate(self.photo_containers.items()):  # .items()返回键值对
+            containers[i] = container  # 将值(container)放入新字典，新的键是连续的数字
+        self.photo_containers = containers  # 更新self.photo_containers为重新索引后的字典
+        self.update_photo_row()
+        pass
+
+    #将container绑定
+    def bind_container(self, containers_count,new_row = False):
+        if new_row:
+            current_index = self.containers_count
+            # 调用 __create_photo_container 创建新的控件
+            self.containers_count += 1
+            self.photo_containers[current_index] = self.__create_photo_container(self.tk_frame_photo_text_container, current_index, self.containers_count)
+            # 将新的控件添加到相应的列表中
+            self.photo_frame.append(self.photo_containers[current_index]['frame'])
+            self.photo_label.append(self.photo_containers[current_index]['label'])
+            self.photo_input.append(self.photo_containers[current_index]['input_text'])
+            self.photo_browser_button.append(self.photo_containers[current_index]['btn'])
+            self.photo_scan_box.append(self.photo_containers[current_index]['cb'])
+            self.update_photo_row()
+        else:
+            # 清除旧的控件
+            if hasattr(self, 'photo_containers'):
+                for container in self.photo_containers.values():
+                    container['frame'].destroy()
+            # 创建新的控件
+            self.photo_containers = {}
+            for i in range(containers_count):
+                self.photo_containers[i] = self.__create_photo_container(self.tk_frame_photo_text_container, i,containers_count)
+            self.containers_count = containers_count
+            self.photo_frame = [self.photo_containers[i]['frame'] for i in range(self.containers_count)]
+            self.photo_label = [self.photo_containers[i]['label'] for i in range(self.containers_count)]
+            self.photo_input = [self.photo_containers[i]['input_text'] for i in range(self.containers_count)]
+            self.photo_browser_button = [self.photo_containers[i]['btn'] for i in range(self.containers_count)]
+            self.photo_scan_box = [self.photo_containers[i]['cb'] for i in range(self.containers_count)]
+
+    #图片选项卡的重复化内容
+    def __create_photo_container(self, parent,photo_index,containers_count):
+        # 创建一个容器frame
+        frame = Frame(parent, bootstyle="default", relief="solid", width=480, height=61)
+        frame.pack(fill="x", pady=5, padx=5)
 
         # 创建标签
         label = Label(frame, text=f"图文{photo_index + 1}:", anchor="center", bootstyle="secondary")
-        label.place(x=15, y=15, width=50, height=30)
+        label.pack(side="left", padx=5, pady=5)
 
         # 创建文本输入框
-        input_text = Entry(frame, bootstyle="info")
-        input_text.place(x=80, y=15, width=220, height=30)
+        input_text = Entry(frame, bootstyle="info", width=25)
+        input_text.pack(side="left", padx=5, pady=5)
 
-        # 创建浏览按钮
+        # 创建浏览按钮, width=70, height=30
         btn = Button(frame, text="浏览", takefocus=False, bootstyle="info")
-        btn.place(x=315, y=15, width=70, height=30)
+        btn.pack(side="left", padx=5, pady=5)
 
+        address_values = [f"地址{i+1}" for i in range(containers_count)]
         # 创建选择框
-        cb = Combobox(frame, state="readonly", bootstyle="default")
-        cb['values'] = ("地址1", "地址2", "地址3", "地址4")
+        cb = Combobox(frame, state="readonly", bootstyle="default", width=5, height=30)
+        cb['values'] = address_values
         cb.current(0)
-        cb.place(x=395, y=15, width=76, height=30)
+        cb.pack(side="left" ,padx=5, pady=5)
+
+                # 创建右键菜单
+        def show_context_menu(event):
+            # 创建菜单
+            menu = Menu(label, tearoff=0)
+            menu.add_command(label="删除此图文行", command=lambda:self.delete_selected_row(label))
+            menu.add_command(label="添加新图文行", command=lambda:self.bind_container(self.containers_count , True))
+            # 显示菜单
+            menu.post(event.x_root, event.y_root)
+
+        # 绑定右键点击事件，弹出菜单
+        label.bind("<Button-3>", show_context_menu)
+        input_text.bind("<Button-3>", show_context_menu)
+        btn.bind("<Button-3>", show_context_menu)
 
         # 返回所有部件，方便存放在一个字典里
         return {
@@ -309,6 +406,7 @@ class TabGUI(Frame):
             'btn': btn,
             'cb': cb
         }
+
 
     def __tk_frame_photo_save_container(self, parent):
         frame = Frame(parent, bootstyle="default")
@@ -369,7 +467,8 @@ class TabGUI(Frame):
 
     def __tk_select_box_photo_address(self, parent):
         cb = Combobox(parent, state="readonly", bootstyle="default")
-        cb['values'] = ("地址1", "地址2", "地址3", "地址4")
+        address_values = [f"地址{i+1}" for i in range(self.containers_count)]
+        cb['values'] = address_values
         cb.current(0)
         cb.place(x=135, y=20, width=70, height=45)
         return cb
@@ -421,7 +520,7 @@ class TabGUI(Frame):
 
     def __tk_select_box_operation_list(self, parent):
         cb = Combobox(parent, state="readonly", bootstyle="default")
-        cb['values'] = ("等待时间", "键盘操作", "鼠标操作","鼠标拖动", "滚轮操作", "开启扫描", "关闭扫描")
+        cb['values'] = ("等待时间", "检查匹配", "鼠标操作", "键盘操作","鼠标拖动", "滚轮操作", "开启扫描", "关闭扫描")
         cb.current(0)
         cb.place(x=140, y=220, width=140)
         return cb
@@ -666,6 +765,15 @@ class TabGUI(Frame):
         if not selected_item:  # 如果点到了某一行
             self.tk_table_operation_box.selection_remove(self.tk_table_operation_box.selection())  # 取消所有选中项
 
+    #读取这页包含多少个图文
+    def get_container_count(self):
+        # 显示图片相关地址
+        try:
+            with open("setting_json/default_photo.json", "r", encoding='utf-8') as json_file:
+                data = json.load(json_file)
+        except:
+            return 4  # 如果没找到,默认四个
+        return data.get("图文数量", 4)
 
 #事件绑定代码
     def __event_bind(self):
@@ -677,14 +785,10 @@ class TabGUI(Frame):
                                                                                                 self.tk_select_box_circle_time_checkbox.get()))
         # 确认地址
         self.tk_select_box_photo_address.bind('<<ComboboxSelected>>',self.ctl.confirm_address_selection)
-        # 4号图片位置
-        self.photo_browser_button[3].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 3))
-        # 3号图片位置
-        self.photo_browser_button[2].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 2))
-        # 2号图片位置
-        self.photo_browser_button[1].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 1))
-        # 1号图片位置
-        self.photo_browser_button[0].bind('<Button-1>', lambda event: self.ctl.browse_target_image(event, 0))
+
+        #用for循环来绑定按钮事件
+        for i in range(self.containers_count):
+            self.photo_browser_button[i].bind('<Button-1>', lambda event, index=i: self.ctl.browse_target_image(event, index))
 
         # 单独图片保存
         self.tk_button_save_photo_button.bind('<Button-1>', self.ctl.save_photo_context)
@@ -759,12 +863,7 @@ class TabGUI(Frame):
         sty.configure(self.new_style(self.tk_button_start_scanning_button), font=("微软雅黑", -20, "bold"))
         #扫描状态标签
         sty.configure(self.new_style(self.tk_label_scanning_state_label), font=("微软雅黑", -20, "bold"))
-        for i in range(4):  # 对应图文1~4,索引0~3
-            # 配置标签样式
-            sty.configure(self.new_style(self.photo_label[i]), font=("微软雅黑", -12))
-            # 配置按钮样式
-            sty.configure(self.new_style(self.photo_browser_button[i]), font=("微软雅黑 Light", -13, "bold"))
-        #图片单独保存/读取按钮
+
         sty.configure(self.new_style(self.tk_button_save_photo_button), font=("微软雅黑", -15, "bold"))
         sty.configure(self.new_style(self.tk_button_load_photo_button), font=("微软雅黑", -15, "bold"))
         #图片扫描策略容器
@@ -820,8 +919,8 @@ class TabGUI(Frame):
         create_tooltip(self.tk_label_scanning_state_label, "扫描的当前状态")
         create_tooltip(self.tk_select_box_circle_time_checkbox, "选择扫描的次数")
 
+        create_tooltip(self.photo_label[0], "右键可以新建/删除此图文")
         create_tooltip(self.photo_browser_button[0], "浏览对应图片的文件(也可以直接填入文字,进行文字识别)")
-        create_tooltip(self.photo_scan_box[0], "选择对应图片的扫描地址")
 
         create_tooltip(self.tk_button_load_photo_button, "单独读取图片记录到本页")
         create_tooltip(self.tk_button_save_photo_button, "单独保存本页图片记录")

@@ -16,6 +16,7 @@ import io
 import pygetwindow as gw
 import threading
 from pypinyin import lazy_pinyin
+from collections import defaultdict
 
 class TabController:
     # 导入UI类后,替换以下的 object 类型,将获得 IDE 属性提示功能
@@ -73,10 +74,10 @@ class TabController:
         self.scanning = False  # 是否扫描
         self.is_executing = False  #是否执行
 
-        self.selection_address = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]] # 四个不同的扫描地址
-        self.max_loc = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]  # 四个不同的扫描成功地址
+        self.selection_address = defaultdict(lambda: [0, 0, 0, 0]) # 四个不同的扫描地址
+        self.max_loc = defaultdict(lambda: [0, 0, 0, 0])  # 四个不同的扫描成功地址
 
-        self.result_check = ["是", "是", "是", "是"]  # 与或非的检查单,全为是则通过检查
+        self.result_check = defaultdict(lambda: "是")  # 全为是通过检查
 
         # 默认的扫描相似度阈值
         self.check_similar = 0.75
@@ -107,12 +108,12 @@ class TabController:
         self.scan_count = 0
         self.photo_if = self.tab.photo_if_var.get()
         if self.photo_if == "all":
-            self.result_check = ["是", "是", "是", "是"]
+            self.result_check = ["是"] * self.tab.containers_count
         elif self.photo_if == "one":
-            self.result_check = ["否", "否", "否", "否"]
+            self.result_check = ["否"] * self.tab.containers_count
 
-        photo_address=[[],[],[],[]]
-        photo_image_path=['','','','']
+        photo_address=defaultdict(lambda: [])
+        photo_image_path=defaultdict(lambda: "")
 
         for future in list(self.scan_futures):
             if future.done():
@@ -129,9 +130,11 @@ class TabController:
 
         self.tab.tk_label_scanning_state_label.config(text="扫描中")
 
-        for i in range(4):
+        for i in range(len(self.tab.photo_containers)):
             photo_address[i]=self.tab.photo_scan_box[i].get()
             photo_image_path[i]=self.tab.photo_input[i].get()
+            self.tab.photo_input[i].config(state="readonly")
+            self.tab.photo_scan_box[i].config(state="disabled")
             if photo_image_path[i].strip():
                 self.result_check[i] = "否"
                 target_image = self.load_target_image(photo_image_path[i],0)
@@ -151,7 +154,10 @@ class TabController:
         self.scan_limit = None
         self.execution_count = 0 #执行次数清空
         self.execution_limit = None
-        self.max_loc = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]] #识别成功地址清空
+        self.max_loc.clear()  #识别成功地址清空
+        for i in range(len(self.tab.photo_containers)):
+            self.tab.photo_input[i].config(state="normal")
+            self.tab.photo_scan_box[i].config(state="normal")
         for future in list(self.scan_futures):  #从线程池子移除所有的扫描线程
             if not future.done():
                 future.cancel()
@@ -306,7 +312,7 @@ class TabController:
                 callback(result)
 
         # 添加 Combobox 控件
-        label_options = ["图文1", "图文2", "图文3", "图文4"]
+        label_options = [f"图文{i+1}" for i in range(self.tab.containers_count)]
         combobox_label = tk.Label(pathfinding_window, text="选择起始点:")
         combobox_label.pack(pady=5)
         combobox = ttk.Combobox(pathfinding_window, values=label_options)
@@ -383,7 +389,7 @@ class TabController:
         # 起始点
         start_combobox_label = tk.Label(start_frame, text="选择起始点:")
         start_combobox_label.pack(pady=5)
-        start_combobox = ttk.Combobox(start_frame, values=["图文1", "图文2", "图文3", "图文4","固定"])
+        start_combobox = ttk.Combobox(start_frame, values=[f"图文{i+1}" for i in range(self.tab.containers_count)] + ["固定"])
         start_combobox.pack(pady=5)
         start_combobox.set("固定")
 
@@ -410,7 +416,7 @@ class TabController:
         # 结束点
         end_combobox_label = tk.Label(end_frame, text="选择结束点:")
         end_combobox_label.pack(pady=5)
-        end_combobox = ttk.Combobox(end_frame, values=["图文1", "图文2", "图文3", "图文4","固定"])
+        end_combobox = ttk.Combobox(end_frame, values=[f"图文{i+1}" for i in range(self.tab.containers_count)] + ["固定"])
         end_combobox.pack(pady=5)
         end_combobox.set("固定")
 
@@ -509,6 +515,7 @@ class TabController:
         self.ocr = GetOcrApi("tool/PaddleOCR-json_v1.4.1/PaddleOCR-json.exe")
         self.tab.tk_label_scanning_state_label.config(text="OCR模型加载完成")
 
+    #开始读取ocr模型
     def start_ocr_loading(self):
         """加载 OCR 模型"""
         if not hasattr(self, 'ocr') or not self.ocr:
@@ -536,15 +543,6 @@ class TabController:
         self.tab.photo_input[text_box_number].delete(0, tk.END)
         self.tab.photo_input[text_box_number].insert(0, target_image_path_str)
         self.save_photos()
-
-    # 选择的图片地址显示出来
-    def select_photo_show(self):
-        address_select = self.tab.tk_select_box_photo_address.get()
-        address_index = int(address_select[-1]) - 1
-        if 0 <= address_index < len(self.selection_address) and self.selection_address[address_index] is not None:
-            start_x, start_y, end_x, end_y = self.selection_address[address_index]
-            self.tab.tk_label_photo_start_label.config(text=f"({start_x},{start_y})")
-            self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
 
     # 更改地址参数的选项,让地址(x1,y1),(x2,y2)符合状态
     def address_change(self,evt, address_select=None,change_type="del"):
@@ -693,7 +691,7 @@ class TabController:
             if self.photo_if == "all":
                 current_scan_result = self.previous_scan_result
                 # 如果是 "all"，要求 result_check 所有项都是 "是"
-                if self.result_check == ["是", "是", "是", "是"]:
+                if all(val == "是" for val in self.result_check):
                     self.previous_scan_result = True
                     if not self.is_executing:
                         self.is_executing = True  # 设置为正在执行
@@ -802,7 +800,7 @@ class TabController:
                 self.tab.tk_label_photo_start_label.config(text=f"({self.start_x},{self.start_y})")
                 self.tab.tk_label_photo_end_label.config(text=f"({self.end_x},{self.end_y})")
                 # 检查并自动将图片地址保存到 selection_address
-                for address_index in range(4):
+                for address_index in range(self.tab.containers_count):
                     if self.selection_address[address_index] == [0, 0, 0, 0]:
                         # 更新对应的地址
                         self.selection_address[address_index] = [self.start_x, self.start_y, self.end_x, self.end_y]
@@ -850,6 +848,7 @@ class TabController:
 
         self.manual_selection_window.focus_set()
 
+    #小窗口未正确关闭的时候,将删除的dele_Op重新放回去
     def on_close(self,position,dele_op,window):
         if dele_op is not None:
             self.operations.insert(position, dele_op)
@@ -1033,56 +1032,29 @@ class TabController:
         selection_window.focus_set()
         selection_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op,selection_window))
 
-    # 添加等待操作窗口
-    def add_wait_operation_window(self, position,dele_op = None):
+    # 添加等待操作窗口（只包含固定时间等待）
+    def add_wait_operation_window(self, position, dele_op=None):
         # 打开等待操作窗口
         wait_window = tk.Toplevel(self.ui)
         wait_window.title("等待操作")
-        wait_window.geometry("350x300")
+        wait_window.geometry("280x160")
         wait_window.lift()
         wait_window.focus_set()
 
-        # 等待时间选择
-        wait_type = tk.StringVar(value="time")  # 默认选择等待时间
-
-        wait_label = tk.Label(wait_window, text="请选择等待类型:")
-        wait_label.pack(pady=5)
-
-        # 选择等待方式（时间或扫描成功）
-        time_radio = tk.Radiobutton(wait_window, text="固定等待时间", variable=wait_type, value="time")
-        time_radio.pack(pady=5)
-
-        scan_radio = tk.Radiobutton(wait_window, text="等待识别成功", variable=wait_type, value="scan")
-        scan_radio.pack(pady=5)
-
-        # 固定等待时间
-        def show_time_wait():
-            time_frame.pack(pady=5)
-            scan_frame.pack_forget()
-
-        # 等待扫描成功
-        def show_scan_wait():
-            scan_frame.pack(pady=5)
-            time_frame.pack_forget()
-
-        wait_type.trace("w", lambda *args: show_time_wait() if wait_type.get() == "time" else show_scan_wait())
-
-        # 固定时间输入框
+        # 固定等待时间输入框
         time_frame = tk.Frame(wait_window)
-        time_input_frame = tk.Frame(time_frame)
-        time_label = tk.Label(time_input_frame, text="等待(毫秒):")
-        time_label.pack(side="left", padx=5)
-        times_entry = tk.Entry(time_input_frame)
-        times_entry.pack(side="left", padx=5)
-        time_input_frame.pack(pady=5)
+        time_label = tk.Label(time_frame, text="等待(毫秒):")
+        time_label.pack(pady=5)
+        times_entry = tk.Entry(time_frame)
+        times_entry.pack(pady=5)
 
         def confirm_time_wait():
             try:
                 wait_time = int(times_entry.get())
                 self.operations.insert(position, {
-                "operation_name": "等待",
-                "parameters": [wait_time],
-                "operation_text": f"等待:{wait_time}ms"
+                    "operation_name": "等待",
+                    "parameters": [wait_time],
+                    "operation_text": f"等待:{wait_time}ms"
                 })
                 self.save_operations()
                 self.populate_operation_list()
@@ -1093,52 +1065,95 @@ class TabController:
         time_button = tk.Button(time_frame, text="确认", command=confirm_time_wait)
         time_button.pack(pady=5)
 
-        # 扫描成功等待输入框与选择图片按钮
-        scan_frame = tk.Frame(wait_window)
-        scan_input_frame = tk.Frame(scan_frame)
+        time_frame.pack(pady=10)
+
+        wait_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position, dele_op, wait_window))
+
+    # 添加检查匹配窗口
+    def add_check_operation_window(self, position, dele_op=None):
+        scan_window = tk.Toplevel(self.ui)
+        scan_window.title("检查匹配操作")
+        scan_window.geometry("350x320")  # 增加窗口高度以适应新控件
+        scan_window.lift()
+        scan_window.focus_set()
+
+        # 扫描输入框和选择图片按钮
+        scan_input_frame = tk.Frame(scan_window)
         scan_label = tk.Label(scan_input_frame, text="图文:")
         scan_label.pack(side="left", padx=5)
         scan_entry = tk.Entry(scan_input_frame)
         scan_entry.pack(side="left", padx=5)
 
         def browse_file():
-            file_path = filedialog.askopenfilename(title="选择扫描图片", filetypes=[("JPG", "*.jpg"),("PNG", "*.png")])
+            file_path = filedialog.askopenfilename(title="选择扫描图片", filetypes=[("JPG", "*.jpg"), ("PNG", "*.png")])
             if file_path:
                 scan_entry.delete(0, tk.END)
                 scan_entry.insert(0, file_path)
 
         browse_button = tk.Button(scan_input_frame, text="浏览", command=browse_file)
         browse_button.pack(side="left", padx=5)
-        scan_input_frame.pack(pady=5)
+        scan_input_frame.pack(pady=10)
 
-        def select_scan_region():
-            wait_window.iconify()
-            self.open_manual_selection_window(evt=None,localentry=[location_entry,wait_window])
         # 扫描位置与等待时间
-        location_frame = tk.Frame(scan_frame)
+        location_frame = tk.Frame(scan_window)
         location_label = tk.Label(location_frame, text="地址:")
         location_label.pack(side="left", padx=5)
         location_entry = tk.Entry(location_frame)
         location_entry.pack(side="left", padx=5)
+
+        def select_scan_region():
+            scan_window.iconify()
+            self.open_manual_selection_window(evt=None, localentry=[location_entry, scan_window])
+
         scan_button = tk.Button(location_frame, text="框选", command=select_scan_region)
         scan_button.pack(side="left", padx=5)
-        location_frame.pack(pady=5)
+        location_frame.pack(pady=10)
 
-        long_time_frame = tk.Frame(scan_frame)
+        # 最长等待时间
+        long_time_frame = tk.Frame(scan_window)
         time_label = tk.Label(long_time_frame, text="最长等待(秒):")
         time_label.pack(side="left", padx=5)
         time_entry = tk.Entry(long_time_frame)
-        time_entry.insert(0,10)
+        time_entry.insert(0, 10)
         time_entry.pack(side="left", padx=5)
-        long_time_frame.pack(pady=5)
+        long_time_frame.pack(pady=10)
 
+        # 如果成功
+        success_frame = tk.Frame(scan_window)
+        success_label = tk.Label(success_frame, text="如果成功:")
+        success_label.pack(side="left", padx=5)
+        success_combobox = ttk.Combobox(success_frame, values=["继续后续操作", "跳过后续操作"])
+        success_combobox.set("继续后续操作")  # 默认值
+        success_combobox.pack(side="left", padx=5)
+        success_frame.pack(pady=10)
 
-        # 框选扫描区域和确认按钮
-        scan_button_frame = tk.Frame(scan_frame)
+        # 如果失败
+        failure_frame = tk.Frame(scan_window)
+        failure_label = tk.Label(failure_frame, text="如果失败:")
+        failure_label.pack(side="left", padx=5)
+        failure_combobox = ttk.Combobox(failure_frame, values=["继续后续操作", "跳过后续操作"])
+        failure_combobox.set("继续后续操作")  # 默认值
+        failure_combobox.pack(side="left", padx=5)
+        failure_frame.pack(pady=10)
+
+        # 确认按钮
+        scan_button_frame = tk.Frame(scan_window)
+
         def confirm_scan_wait():
             scan_image = scan_entry.get()
             location = eval(location_entry.get())
             max_wait_time = float(time_entry.get())
+            success_action = success_combobox.get()
+            failure_action = failure_combobox.get()
+            if success_action =="继续后续操作":
+                success_action = True
+            else:
+                success_action = False
+            if failure_action =="继续后续操作":
+                failure_action = True
+            else:
+                failure_action = False
+
             # 检查是否有输入
             if not scan_image:
                 tk.messagebox.showwarning("警告", "请输入扫描图片路径!")
@@ -1152,22 +1167,19 @@ class TabController:
 
             # 将结果插入操作列表并更新UI
             self.operations.insert(position, {
-            "operation_name": "等待匹配",
-            "parameters": [scan_image,location,float(max_wait_time)],
-            "operation_text": f"等待匹配{scan_image}-{location}-{max_wait_time}秒"
+                "operation_name": "检查",
+                "parameters": [scan_image, location, float(max_wait_time), success_action, failure_action],
+                "operation_text": f"检查匹配{scan_image}-{location}-{max_wait_time}秒"
             })
             self.save_operations()
             self.populate_operation_list()
-            wait_window.destroy()
+            scan_window.destroy()
 
-        scan_button_confirm = tk.Button(scan_button_frame, text="确认", command=confirm_scan_wait)
+        scan_button_confirm = tk.Button(scan_button_frame, text="确认提交", command=confirm_scan_wait,width=10)
         scan_button_confirm.pack(side="left", padx=5)
+        scan_button_frame.pack(pady=15)
 
-        scan_button_frame.pack(pady=5)
-
-        show_time_wait()
-
-        wait_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position,dele_op,wait_window))
+        scan_window.protocol("WM_DELETE_WINDOW", lambda: self.on_close(position, dele_op, scan_window))
 
     # 添加滚轮操作窗口
     def add_scroll_operation_window(self, position,dele_op = None):
@@ -1546,18 +1558,25 @@ class TabController:
                         if not self.scanning:  # 防止用户输入过大的数字，不再扫描时停止等待
                             break
                         time.sleep(0.1)
-                elif operation_name == "等待匹配":
+                elif operation_name == "检查":
                     scan_image = parameters[0]  # 获取扫描图像路径
                     location = parameters[1]  # 获取扫描位置
                     max_wait_time = parameters[2]  # 获取最大等待时间（单位：秒）
+                    success_action = parameters[3]
+                    failure_action = parameters[4]
                     start_time = time.time()
                     target_image = self.load_target_image(scan_image)
                     while time.time() - start_time < max_wait_time:
                         if self.check_scan(target_image, location):
+                            if not success_action:
+                                return
                             break
                         if not self.scanning:  # 防止用户输入过大的数字，不再扫描时停止等待
                             break
                         time.sleep(0.1)
+                    if time.time() - start_time > max_wait_time:
+                        if not failure_action:
+                                return
                 elif operation_name == "滚轮":
                     scroll_time = parameters[0]  # 获取滚动步数
                     pyautogui.scroll(scroll_time)  # 执行滚轮操作
@@ -1836,8 +1855,10 @@ class TabController:
         num_rows = len(self.tab.tk_table_operation_box.get_children())
         if operation_position is None:
             operation_position = num_rows + 1
-        if operation_content in ["等待时间","等待","等待匹配"]:
+        if operation_content in ["等待时间","等待"]:
             self.add_wait_operation_window(operation_position,dele_op)
+        if operation_content in ["检查匹配","检查"]:
+            self.add_check_operation_window(operation_position,dele_op)
         elif operation_content in ["键盘操作", "键盘"]:
             self.add_keyboard_operation_window(operation_position,dele_op)
         elif operation_content in ["鼠标操作","鼠标"]:
@@ -1955,12 +1976,13 @@ class TabController:
     # 保存图片信息到file_path(写入cache)的位置
     def save_photos(self, default_photo=None , getdata=None):
         data = {}
-        for i in range(4):
+        for i in range(len(self.tab.photo_containers)):
             data[f"地址{i+1}"] = self.selection_address[i]
             data[f"图片{i+1}的位置"] = self.tab.photo_input[i].get()
             data[f"图片{i+1}的地址"] = self.tab.photo_scan_box[i].get()
         data["满足方式"] = self.tab.photo_if_var.get()
         data["窗口选择"] = self.process_name
+        data["图文数量"] = len(self.tab.photo_containers)
         if default_photo is None:
             write_path = self.photo_path
         else:
@@ -2032,9 +2054,17 @@ class TabController:
                 with open(photo_path, "r") as json_file:
                     data = json.load(json_file)  # 如果是手动读取,那么photo_path作为json地址读取
             else:
-                data = photo_path     # 如果是自动读取,那么photo_path作为data读取
-            # 对读取内容缺失的调整
-            for i in range(4):
+                data = photo_path     # 如果是自动读取,那么photo_path作为data内容读取
+            num_images = data.get("图文数量", 4)
+            current_images = self.tab.containers_count
+            if num_images != current_images:
+                try:
+                    self.tab.bind_container(num_images)
+                except Exception as e:
+                    self.error_print(e)
+            address_values = [f"地址{i+1}" for i in range(num_images)]
+            self.tab.tk_select_box_photo_address['values'] = address_values
+            for i in range(num_images):
                 self.selection_address[i] = data.get(f"地址{i+1}", [0, 0, 0, 0])
                 self.tab.photo_input[i].delete(0, "end")
                 self.tab.photo_input[i].insert(0, data.get(f"图片{i+1}的位置", ""))
@@ -2042,20 +2072,30 @@ class TabController:
             self.tab.photo_if_var.set(data.get("满足方式", "all"))
             self.tab.tk_label_process_label.config(text=data.get("窗口选择", "窗口选择"+"\n暂无"))
             self.process_name = data.get("窗口选择", None)
-
             self.select_photo_show()
 
         except (IOError, json.JSONDecodeError, KeyError) as e:
             # 如果json内部键值错误
-            for i in range(4):
-                self.selection_address[i] = data.get([0, 0, 0, 0])
-                self.tab.photo_input[i].delete(0, "end")
-                self.tab.photo_input[i].insert(0, "")
-                self.tab.photo_scan_box[i].set(data.get("地址1"))
+            for i in range(data.get("图文数量", 4)):
+                try:
+                    self.selection_address[i] = [0, 0, 0, 0]
+                    self.tab.photo_input[i].delete(0, "end")
+                    self.tab.photo_input[i].insert(0, "")
+                    self.tab.photo_scan_box[i].set("地址1")
+                except Exception as e :
+                    self.error_print(e)
             self.tab.photo_if_var.set("all")
             self.tab.tk_label_process_label.config(text="窗口选择"+"\n无")
-
             self.select_photo_show()
+
+    # 选择的图片地址显示出来
+    def select_photo_show(self):
+        address_select = self.tab.tk_select_box_photo_address.get()
+        address_index = int(address_select[-1]) - 1
+        if 0 <= address_index < len(self.selection_address) and self.selection_address[address_index] is not None:
+            start_x, start_y, end_x, end_y = self.selection_address[address_index]
+            self.tab.tk_label_photo_start_label.config(text=f"({start_x},{start_y})")
+            self.tab.tk_label_photo_end_label.config(text=f"({end_x},{end_y})")
 
 
 #默认设置代码

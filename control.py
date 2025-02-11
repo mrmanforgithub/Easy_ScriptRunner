@@ -75,12 +75,13 @@ class Controller:
                     }
                 })
             images = {}
-            for i in range(4):
+            for i in range(self.tabs[tab_index].containers_count):
                 images[f"地址{i+1}"] = self.tabs[tab_index].ctl.selection_address[i]
                 images[f"图片{i+1}的位置"] = self.tabs[tab_index].photo_input[i].get()
                 images[f"图片{i+1}的地址"] = self.tabs[tab_index].photo_scan_box[i].get()
             images["满足方式"] = self.tabs[tab_index].photo_if_var.get()
             images["窗口选择"] = self.tabs[tab_index].ctl.process_name
+            images["图文数量"] = self.tabs[tab_index].containers_count
             page = {
                 "page_index": tab_index,
                 "operations": page_operations,
