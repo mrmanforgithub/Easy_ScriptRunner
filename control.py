@@ -182,11 +182,19 @@ class Controller:
                                     "\n也可以填入文字进行文字识别哦")
 
     def bind_keys(self, path):
-        default_bindings = {
-        "快捷键": {
-            "循环开启扫描": "F11",
-            "关闭所有扫描": "esc"
-        }}
+        default_bindings ={
+            "快捷键": {
+                "循环开启扫描": "F12",
+                "关闭所有扫描": "esc"
+            },
+            "else": {
+                "相似度": 0.75,
+                "随机偏移": 0,
+                "策略": "强相似",
+                "关闭方式": "直接退出",
+                "扫描时间": 100
+            }
+        }
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 key_bindings = json.load(f)

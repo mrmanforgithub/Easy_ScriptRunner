@@ -128,12 +128,15 @@ class Win(WinGUI):
         self.ctl.init(self)
 
     def checkfirst(self):
-        with open(self.key_setting_path, 'r',encoding='utf-8') as file:
-            data = json.load(file)
-            if data["else"]["关闭方式"] == "未设置":
-                self.protocol("WM_DELETE_WINDOW", self.confirm_close)
-            elif data["else"]["关闭方式"] == "最小化":
-                self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
+        try:
+            with open(self.key_setting_path, 'r',encoding='utf-8') as file:
+                data = json.load(file)
+                if data["else"]["关闭方式"] == "未设置":
+                    self.protocol("WM_DELETE_WINDOW", self.confirm_close)
+                elif data["else"]["关闭方式"] == "最小化":
+                    self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
+        except:
+            pass
 
     def confirm_close(self):
         with open(self.key_setting_path, 'r',encoding='utf-8') as file:

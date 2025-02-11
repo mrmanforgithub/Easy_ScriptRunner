@@ -6,6 +6,7 @@ from ttkbootstrap import *
 from pytkUI.widgets import *
 from tabcontrol import TabController as tab_controller
 from ToolTip import *
+import os
 
 class TabGUI(Frame):
     ui: object
@@ -297,6 +298,14 @@ class TabGUI(Frame):
         def on_mouse_wheel(event):
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")  # 滚动的速度可以调整
         canvas.bind_all("<MouseWheel>", on_mouse_wheel)  # Windows系统用 <MouseWheel>
+
+        def show_context_menu(event):
+            # 创建菜单
+            menu = Menu(canvas, tearoff=0)
+            menu.add_command(label="添加新图文行", command=lambda:self.bind_container(self.containers_count , True))
+            # 显示菜单
+            menu.post(event.x_root, event.y_root)
+        canvas.bind("<Button-3>", show_context_menu)
         # 设置容器的固定大小
         frame.place(x=0, y=0, width=489, height=274)
         return [frame,content_frame]
@@ -308,6 +317,7 @@ class TabGUI(Frame):
         self.tk_select_box_photo_address['values'] = address_values
         for i in range(self.containers_count):
             self.photo_label[i].config(text=f"图文{i + 1}:")  # 重新设置label的文本
+            self.photo_browser_button[i].bind('<Button-1>', lambda event,index=i: self.ctl.browse_target_image(event, index))
 
     def delete_selected_row(self, photo_index):
         text = photo_index.cget("text")
@@ -358,6 +368,8 @@ class TabGUI(Frame):
             self.photo_input = [self.photo_containers[i]['input_text'] for i in range(self.containers_count)]
             self.photo_browser_button = [self.photo_containers[i]['btn'] for i in range(self.containers_count)]
             self.photo_scan_box = [self.photo_containers[i]['cb'] for i in range(self.containers_count)]
+            for i in range(self.containers_count):
+                self.photo_browser_button[i].bind('<Button-1>', lambda event,index=i: self.ctl.browse_target_image(event, index))
 
     #图片选项卡的重复化内容
     def __create_photo_container(self, parent,photo_index,containers_count):
@@ -468,6 +480,8 @@ class TabGUI(Frame):
     def __tk_select_box_photo_address(self, parent):
         cb = Combobox(parent, state="readonly", bootstyle="default")
         address_values = [f"地址{i+1}" for i in range(self.containers_count)]
+        if not address_values:
+            address_values = ["地址1"]
         cb['values'] = address_values
         cb.current(0)
         cb.place(x=135, y=20, width=70, height=45)
@@ -715,7 +729,6 @@ class TabGUI(Frame):
 #工具/轮子代码
     def similar_default_set(self):
         json_file = self.key_setting_path
-
         try:
             with open(json_file, "r", encoding="utf-8") as file:
                 settings = json.load(file)
@@ -730,7 +743,7 @@ class TabGUI(Frame):
             self.label_value.set(similarity_percent)
             self.tk_scale_num_similar.set(similarity_num)
         else:
-            tab_controller.error_print(e)
+            tab_controller.error_print(None,"缺少键值")
 
     #右键显示菜单
     def show_context_menu(self, event):
@@ -785,10 +798,6 @@ class TabGUI(Frame):
                                                                                                 self.tk_select_box_circle_time_checkbox.get()))
         # 确认地址
         self.tk_select_box_photo_address.bind('<<ComboboxSelected>>',self.ctl.confirm_address_selection)
-
-        #用for循环来绑定按钮事件
-        for i in range(self.containers_count):
-            self.photo_browser_button[i].bind('<Button-1>', lambda event, index=i: self.ctl.browse_target_image(event, index))
 
         # 单独图片保存
         self.tk_button_save_photo_button.bind('<Button-1>', self.ctl.save_photo_context)
@@ -918,9 +927,11 @@ class TabGUI(Frame):
         create_tooltip(self.tk_button_start_scanning_button, "按下开始扫描")
         create_tooltip(self.tk_label_scanning_state_label, "扫描的当前状态")
         create_tooltip(self.tk_select_box_circle_time_checkbox, "选择扫描的次数")
-
-        create_tooltip(self.photo_label[0], "右键可以新建/删除此图文")
-        create_tooltip(self.photo_browser_button[0], "浏览对应图片的文件(也可以直接填入文字,进行文字识别)")
+        try:
+            create_tooltip(self.photo_label[0], "右键可以新建/删除此图文")
+            create_tooltip(self.photo_browser_button[0], "浏览对应图片的文件(也可以直接填入文字,进行文字识别)")
+        except:
+            pass
 
         create_tooltip(self.tk_button_load_photo_button, "单独读取图片记录到本页")
         create_tooltip(self.tk_button_save_photo_button, "单独保存本页图片记录")

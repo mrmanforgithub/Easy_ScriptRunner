@@ -1935,6 +1935,10 @@ class TabController:
                     ]
                     return operations
         except FileNotFoundError as e:
+            if not os.path.exists(file_path):
+                os.makedirs(os.path.dirname(self.default_photo_path), exist_ok=True)
+                with open(file_path , "w", encoding='utf-8') as default_file:
+                    json.dump({}, default_file, ensure_ascii=False, indent=4)
             self.error_print(e)
             return []
 
@@ -1958,10 +1962,38 @@ class TabController:
 
     # 将默认的图片信息加入cache缓存
     def add_default_photos(self):
-        with open(self.photo_path, "w") as json_file:
-            with open(self.default_photo_path, "r", encoding='utf-8') as default_file:
-                data = json.load(default_file)  # 读取位于setting_json/default_photo.json中的默认图片信息
-            json.dump(data, json_file)  # 写入缓存
+    # 检查文件是否存在
+        if not os.path.exists(self.default_photo_path):
+            # 如果文件不存在，创建并写入默认数据
+            default_data = {
+                "地址1": [0, 0, 0, 0],
+                "图片1的位置": "",
+                "图片1的地址": "地址1",
+                "地址2": [0, 0, 0, 0],
+                "图片2的位置": "",
+                "图片2的地址": "地址1",
+                "地址3": [0, 0, 0, 0],
+                "图片3的位置": "",
+                "图片3的地址": "地址1",
+                "地址4": [0, 0, 0, 0],
+                "图片4的位置": "",
+                "图片4的地址": "地址1",
+                "满足方式": "all",
+                "窗口选择": "",
+                "图文数量": 4
+            }
+            # 创建文件夹（如果不存在的话）
+            os.makedirs(os.path.dirname(self.default_photo_path), exist_ok=True)
+            # 写入默认数据到 default_photo.json
+            with open(self.default_photo_path, "w", encoding='utf-8') as default_file:
+                json.dump(default_data, default_file, ensure_ascii=False, indent=4)
+        # 读取现有的默认图片信息
+        with open(self.default_photo_path, "r", encoding='utf-8') as default_file:
+            data = json.load(default_file)  # 读取默认图片信息
+
+        # 将默认的图片信息加入cache缓存
+        with open(self.photo_path, "w", encoding='utf-8') as json_file:
+            json.dump(data, json_file, ensure_ascii=False, indent=4)
 
     # 保存操作列表到file_path(写入cache)的位置
     def save_operations(self):
@@ -2051,7 +2083,7 @@ class TabController:
         # 显示图片相关地址
         try:
             if load_if:
-                with open(photo_path, "r") as json_file:
+                with open(photo_path, "r", encoding='utf-8') as json_file:
                     data = json.load(json_file)  # 如果是手动读取,那么photo_path作为json地址读取
             else:
                 data = photo_path     # 如果是自动读取,那么photo_path作为data内容读取
