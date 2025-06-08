@@ -1,7 +1,7 @@
 
 <div align="center">
 
-![image](./images/icons/menu.ico)
+![image](./menu.ico)
 
 # SCRIPT_RUNNER
 
@@ -590,8 +590,6 @@ MOD_TYPE: recognizer
 
 from app.components.recognizer_widget import RecognizeResult。
 
-
-
 ​      result_obj = RecognizeResult(
 
 ​        loc=(top_left, bottom_right)，
@@ -629,8 +627,6 @@ from app.components.recognizer_widget import RecognizeResult。
 试试去查一查这个英文的意思（开源软件你可以自己修一下，如果你会打代码）
 
 如果自己往里面加了mod，试试删掉。
-
-
 
 如果非要在大片区域内寻找内容，首先先考虑文字识别和模板匹配，文字识别的速率比较快，图片识别中的特征识别识别速率会随着识别区域的扩大变得相当低下。
 
