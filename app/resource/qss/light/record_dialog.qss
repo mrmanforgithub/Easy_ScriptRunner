@@ -1,0 +1,7 @@
+#view {
+    background-color: #ffffff;
+}
+
+QLabel{
+    color:black;
+}

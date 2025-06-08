@@ -1,0 +1,63 @@
+#view {
+    background-color: transparent;
+}
+
+QScrollArea {
+    border: none;
+    background-color: transparent;
+}
+
+
+QSplitter::handle {
+    background-color: --ThemeColorPrimary;
+    border: 1px solid --ThemeColorPrimary;
+    width: 10px;
+}
+
+QScrollBar:vertical {
+    border: none;
+    width: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background: --ThemeColorPrimary;
+    border-radius: 6px;
+    min-height: 30px;
+}
+
+QScrollBar::add-line:vertical {
+    background: --ThemeColorPrimary;
+    border: none;
+}
+
+QScrollBar::sub-line:vertical {
+    background: --ThemeColorPrimary;
+    border: none;
+}
+
+QLabel#scanstatuslabel {
+    border: 2px dashed --ThemeColorPrimary;  /* 边框 */
+    font-weight: bold;        /* 字体加粗 */
+    font-size: 20px;          /* 字体放大 */
+    padding: 30px;
+    color: --ThemeColorPrimary;
+}
+
+QWidget #window_select{
+    padding:10px;
+    border: 1px solid --ThemeColorPrimary;  /* 边框 */
+}
+
+
+QWidget#Container {
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    padding: 5px;
+}
+
+
+QLabel#text_label{
+    font-size: 24px;
+    font-weight: bold;
+    color:--ThemeColorPrimary;
+}

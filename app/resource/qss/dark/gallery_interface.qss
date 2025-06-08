@@ -1,0 +1,63 @@
+GalleryInterface,
+ToolBar,
+#view {
+    background-color: transparent;
+}
+
+QScrollArea {
+    border: none;
+    background-color: transparent;
+}
+
+
+ToolBar>CaptionLabel {
+    color: white;
+}
+
+NolinkCard {
+    background-color: transparent;
+    color: white;
+}
+
+TitleLabel,
+StrongBodyLabel {
+    color: white;
+}
+
+
+#sourceWidget {
+    background-color: rgba(255, 255, 255, 0.09);
+    border-top: 1px solid rgb(36, 36, 36);
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+NolinkCard>#card {
+    border: 1px solid rgb(36, 36, 36);
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.1795);
+}
+
+NolinkCard>#card QLabel {
+    font: 14px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
+    color: white;
+}
+
+NolinkCard>#card InfoBadge {
+    font-size: 11px;
+}
+
+QTextBrowser {
+    font: 18px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
+    color: #009faa;
+    background: transparent;
+    border: none;
+}
+a {
+    color: #009faa;
+    text-decoration: none;
+}
+a:hover {
+    color: #00b3b3;
+    text-decoration: none;
+}

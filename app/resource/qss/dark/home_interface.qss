@@ -1,0 +1,51 @@
+SettingInterface,
+#view {
+    background-color: transparent;
+}
+
+QScrollArea {
+    border: none;
+    background-color: transparent;
+}
+
+
+BannerWidget > #galleryLabel {
+    font: 42px 'Segoe UI SemiBold', 'Microsoft YaHei SemiBold';
+    background-color: transparent;
+    color: white;
+    padding-left: 28px;
+}
+
+QSplitter::handle {
+    background-color: --ThemeColorPrimary;
+    border: 1px solid --ThemeColorPrimary;
+    width: 10px;
+}
+
+QScrollBar:vertical {
+    border: none;
+    width: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background: --ThemeColorPrimary;
+    border-radius: 6px;
+    min-height: 30px;
+}
+
+QScrollBar::add-line:vertical {
+    background: --ThemeColorPrimary;
+    border: none;
+}
+
+QScrollBar::sub-line:vertical {
+    background: --ThemeColorPrimary;
+    border: none;
+}
+
+QLabel#operationlabel {
+    background: --ThemeColorPrimary;
+    font-weight: bold;        /* 字体加粗 */
+    color:black;
+    border-radius: 10px;
+}

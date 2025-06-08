@@ -10,3 +10,7 @@ venv/
 build/
 dist/
 main.spec
+examples/
+qfluentwidgets/
+config/
+copy/
